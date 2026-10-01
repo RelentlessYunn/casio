@@ -3,7 +3,10 @@
 
 import * as THREE from '../vendor/three.min.js';
 
-const { RoundedBoxGeometry } = THREE;
+const { RoundedBoxGeometry, EXRLoader, EffectComposer, RenderPass, GTAOPass, OutputPass } = THREE;
+
+// Photographed studio lighting (Poly Haven, CC0) for realistic reflections.
+const HDRI_URL = (name) => new URL(`../assets/hdri/${name}.exr`, import.meta.url).href;
 
 export const DIALS = {
   black: { base: '#17181c', print: '#eef0f3' },
@@ -88,24 +91,71 @@ function handShape(width, length, tail, bevel = 0) {
    Textures
    ------------------------------------------------------------------------- */
 
-// Subtle polish imperfections for steel roughness (G channel).
+// Wear on polished steel (roughness, G channel): soft smudges plus fine hairline
+// scratches, which break up reflections the way real, handled steel does.
 function makeSmudgeTex() {
-  const c = canvas(256, 256);
+  const S = 1024;
+  const c = canvas(S, S);
   const ctx = c.getContext('2d');
-  ctx.fillStyle = 'rgb(0,200,0)';
-  ctx.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 260; i++) {
-    const x = hash(i) * 256;
-    const y = hash(i + 91) * 256;
-    const r = 6 + hash(i + 7) * 40;
+  ctx.fillStyle = 'rgb(0,175,0)';
+  ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 420; i++) {
+    const x = hash(i) * S;
+    const y = hash(i + 91) * S;
+    const r = 20 + hash(i + 7) * 140;
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const v = 150 + Math.round(hash(i + 3) * 105);
-    g.addColorStop(0, `rgba(0,${v},0,0.35)`);
+    const v = 120 + Math.round(hash(i + 3) * 135);
+    g.addColorStop(0, `rgba(0,${v},0,0.4)`);
     g.addColorStop(1, `rgba(0,${v},0,0)`);
     ctx.fillStyle = g;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 1400; i++) {
+    const x = hash(i * 3.1) * S;
+    const y = hash(i * 7.7) * S;
+    const a = hash(i * 1.3) * Math.PI * 2;
+    const len = 6 + Math.pow(hash(i * 5.9), 3) * 160;
+    const bend = (hash(i * 2.2) - 0.5) * 0.6;
+    ctx.strokeStyle = `rgba(0,255,0,${0.25 + hash(i * 4.4) * 0.5})`;
+    ctx.lineWidth = 0.6 + hash(i * 6.6) * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + Math.cos(a + bend) * len * 0.5, y + Math.sin(a + bend) * len * 0.5, x + Math.cos(a) * len, y + Math.sin(a) * len);
+    ctx.stroke();
+  }
   return dataTex(c, { repeat: true });
+}
+
+// Printed minute marks around the sloped inner flange (lathe UV: u = angle).
+function makeRehautTex() {
+  const W = 4096;
+  const H = 64;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#2a2d33';
+  for (let i = 0; i < 240; i++) {
+    const x = (i / 240) * W;
+    const major = i % 20 === 0;
+    const five = i % 4 === 0;
+    ctx.fillRect(x - (major ? 3 : 1.5), major ? 6 : five ? 18 : 30, major ? 6 : 3, H);
+  }
+  return dataTex(c, { srgb: true });
+}
+
+function makeClaspTex() {
+  const c = canvas(512, 256);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 512, 256);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '800 120px "Archivo", Arial, sans-serif';
+  ctx.fillText('CASIO', 256, 128);
+  return dataTex(c);
 }
 
 // Linear brush lines along the texture's v axis (G channel).
@@ -348,20 +398,31 @@ export function createWatch(canvasEl, opts = {}) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(30, 1, 10, 2000);
+  const camera = new THREE.PerspectiveCamera(30, 1, 40, 700);
   camera.position.set(0, 0, 220);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(makeStudio(), 0, 0.1, 400).texture;
-  if ('environmentIntensity' in scene) scene.environmentIntensity = 1.0;
+  // Swap in the photographed HDRI as soon as it has loaded.
+  const envOpts = { name: 'studio', rotation: [0, 0, 0], ...(opts.env || {}) };
+  new EXRLoader().load(HDRI_URL(envOpts.name), (hdr) => {
+    hdr.mapping = THREE.EquirectangularReflectionMapping;
+    const env = pmrem.fromEquirectangular(hdr).texture;
+    hdr.dispose();
+    scene.environment?.dispose();
+    scene.environment = env;
+    if (scene.environmentRotation) scene.environmentRotation.set(...envOpts.rotation);
+    opts.onEnv?.();
+  });
+  if ('environmentIntensity' in scene) scene.environmentIntensity = 0.9;
 
   // Key light: soft daylight from the top left. Casts every shadow in the scene.
   const sunDir = new THREE.Vector3(-0.6, 0.7, 0.62).normalize();
-  const key = new THREE.DirectionalLight(0xf4f6ff, 2.9);
+  const key = new THREE.DirectionalLight(0xf4f6ff, 3.6);
   key.castShadow = true;
   const mapSize = small ? 2048 : 4096;
   key.shadow.mapSize.set(mapSize, mapSize);
-  key.shadow.radius = 3;
+  key.shadow.radius = 2;
   key.shadow.bias = -0.0003;
   key.shadow.camera.near = 1;
   key.shadow.camera.far = 700;
@@ -409,7 +470,7 @@ export function createWatch(canvasEl, opts = {}) {
       color: 0x000000,
       metalness: 0,
       roughness: 0.02,
-      envMapIntensity: 2.6,
+      envMapIntensity: 0.8,
       transparent: true,
       depthWrite: false,
       blending: THREE.CustomBlending,
@@ -422,6 +483,12 @@ export function createWatch(canvasEl, opts = {}) {
     glassEdge: new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.02, transparent: true, opacity: 0.22, depthWrite: false }),
   };
   mat.lugHole = mat.black;
+  const flankBrush = brush.clone();
+  flankBrush.repeat.set(24, 1);
+  flankBrush.needsUpdate = true;
+  mat.flank = physical({ color: 0xc9ced5, roughness: 0.3, roughnessMap: flankBrush, anisotropy: 0.85 });
+  mat.rehaut = new THREE.MeshStandardMaterial({ color: 0xc4c9d0, map: makeRehautTex(), metalness: 0.85, roughness: 0.38 });
+  mat.lacquer = new THREE.MeshStandardMaterial({ color: 0x07080b, roughness: 0.25, metalness: 0.1 });
   // bracelet-only materials, so fading the bracelet never touches the case
   mat.claspPolished = mat.polished.clone();
   mat.pin = mat.black.clone();
@@ -429,8 +496,8 @@ export function createWatch(canvasEl, opts = {}) {
   const dialMask = makeDialMaskTex();
   const dialMat = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(DIALS.blue.base),
-    metalness: 0.62,
-    roughness: 0.34,
+    metalness: 0.42,
+    roughness: 0.3,
     roughnessMap: makeSunburstTex(),
     anisotropy: 1,
     anisotropyRotation: 0,
@@ -477,16 +544,27 @@ export function createWatch(canvasEl, opts = {}) {
   };
 
   /* ----------------------------------------------------------------- case */
+  // polished lower chamfer
+  add('case', lathe([[17.4, -3.26], [18.2, -3.12], [18.8, -2.78], [19.14, -2.24]]), mat.polished);
+  // vertically brushed mid-case band
+  add('case', lathe([[19.14, -2.24], [CASE_R, -1.62], [CASE_R, 1.7], [19.2, 1.98]]), mat.flank);
+  // polished bezel, crystal seat and inner wall
   add(
     'case',
     lathe([
-      [17.4, -3.26], [18.2, -3.12], [18.8, -2.78], [19.14, -2.24], [CASE_R, -1.62],
-      [CASE_R, 1.78], [19.16, 2.24], [18.88, 2.68], [18.36, 2.99], [17.64, 3.12],
+      [19.2, 1.98], [19.16, 2.24], [18.88, 2.68], [18.36, 2.99], [17.64, 3.12],
       [16.94, 3.06], [16.5, 2.88], [16.28, 2.58], [16.28, 2.02], [15.86, 1.96],
       [15.86, 0.16], [15.52, 0.02], [15.52, -3.26], [17.4, -3.26],
     ]),
     mat.polished
   );
+  // hairline seams between bezel / mid-case / caseback
+  const seamGeo = new THREE.TorusGeometry(CASE_R - 0.02, 0.045, 6, 192);
+  add('case', seamGeo, mat.black, [0, 0, 1.98]);
+  add('case', new THREE.TorusGeometry(17.32, 0.05, 6, 192), mat.black, [0, 0, -3.27]);
+
+  // sloped inner flange (rehaut) with printed minute marks
+  add('case', lathe([[16.27, 1.98], [16.0, 1.3], [15.75, 0.6], [15.52, 0.04]], 240), mat.rehaut);
 
   // Lugs: side profile extruded across X with generous bevels, mirrored to the four corners.
   const lugShape = new THREE.Shape();
@@ -541,6 +619,9 @@ export function createWatch(canvasEl, opts = {}) {
   const tubeGeo = new THREE.CylinderGeometry(1.05, 1.05, 1.4, 32);
   tubeGeo.rotateZ(Math.PI / 2);
   add('case', tubeGeo, mat.polished, [CASE_R + 0.3, 0, -0.42]);
+  const gasket = new THREE.TorusGeometry(1.2, 0.14, 10, 40);
+  gasket.rotateY(Math.PI / 2);
+  add('case', gasket, mat.black, [CASE_R + 0.95, 0, -0.42]);
 
   /* ----------------------------------------------------------------- crystal */
   const crystal = add('crystal', zCylinder(16.28, 0.62, 160), mat.glass, [0, 0, 2.55]);
@@ -566,13 +647,16 @@ export function createWatch(canvasEl, opts = {}) {
   idxShape.closePath();
   const idxGeo = new THREE.ExtrudeGeometry(idxShape, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.2, bevelSize: bev, bevelSegments: 1 });
   idxGeo.translate(0, 0, 0.2);
+  const grooveGeo = new THREE.BoxGeometry(0.15, 2.5, 0.03);
   for (let i = 0; i < 12; i++) {
     if (i === 3) continue;
     const a = (i / 12) * Math.PI * 2;
     const r = 12.2;
     for (const o of i === 0 ? [-0.75, 0.75] : [0]) {
-      const m = add('dial', idxGeo, mat.polishedHi, [Math.sin(a) * r + Math.cos(a) * o, Math.cos(a) * r - Math.sin(a) * o, 0], [0, 0, -a]);
-      m.userData.index = true;
+      const px = Math.sin(a) * r + Math.cos(a) * o;
+      const py = Math.cos(a) * r - Math.sin(a) * o;
+      add('dial', idxGeo, mat.polishedHi, [px, py, 0], [0, 0, -a]);
+      add('dial', grooveGeo, mat.lacquer, [px, py, 0.565], [0, 0, -a]);
     }
   }
 
@@ -598,11 +682,16 @@ export function createWatch(canvasEl, opts = {}) {
   /* ----------------------------------------------------------------- hands */
   const handExtrude = (shape, depth, bevelT, bevelS) =>
     new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevelT, bevelSize: bevelS, bevelSegments: 3, curveSegments: 12 });
+  // Polished hand frame with a recessed channel of luminous paint.
   function buildHand(width, length, tail, z, layer) {
     const g = new THREE.Group();
-    g.add(new THREE.Mesh(handExtrude(handShape(width, length, tail, 0.12), 0.1, 0.08, 0.12), mat.hand));
-    const lume = new THREE.Mesh(new THREE.ExtrudeGeometry(handShape(width * 0.5, length - 2.6, 2.4), { depth: 0.04, bevelEnabled: false }), mat.lume);
-    lume.position.z = 0.19;
+    const outline = handShape(width, length, tail, 0.12);
+    const channel = handShape(width * 0.5, length - 2.6, 2.4);
+    const hole = new THREE.Path(channel.getPoints(12).reverse());
+    outline.holes.push(hole);
+    g.add(new THREE.Mesh(handExtrude(outline, 0.1, 0.08, 0.12), mat.hand));
+    const lume = new THREE.Mesh(new THREE.ExtrudeGeometry(channel, { depth: 0.2, bevelEnabled: false }), mat.lume);
+    lume.position.z = -0.08;
     g.add(lume);
     g.position.z = z;
     layers[layer].add(g);
@@ -663,6 +752,11 @@ export function createWatch(canvasEl, opts = {}) {
     ]),
     mat.backBrushed
   );
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    add('caseback', new THREE.BoxGeometry(1.6, 0.9, 0.7), mat.black, [Math.cos(a) * 16.6, Math.sin(a) * 16.6, -4.75], [0, 0, a + Math.PI / 2]);
+  }
+  add('caseback', new THREE.TorusGeometry(9.4, 0.14, 8, 128), mat.polished, [0, 0, -6.3]);
   const backTex = makeBackTex();
   const backPrint = add(
     'caseback',
@@ -682,8 +776,8 @@ export function createWatch(canvasEl, opts = {}) {
   const theta0 = Math.atan2(P0.z - C.z, P0.y - C.y);
 
   // narrow, domed polished centre row; wider, flatter brushed outer rows
-  const centerGeo = new RoundedBoxGeometry(5.0, pitch - 0.3, 2.7, 5, 1.05);
-  const outerGeo = new RoundedBoxGeometry(7.2, pitch - 0.3, 2.4, 3, 0.5);
+  const centerGeo = new RoundedBoxGeometry(5.0, pitch - 0.16, 2.7, 5, 1.05);
+  const outerGeo = new RoundedBoxGeometry(7.2, pitch - 0.16, 2.4, 3, 0.5);
   const OUTER_X = 6.24;
   const pinGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.12, 16);
   pinGeo.rotateZ(Math.PI / 2);
@@ -781,7 +875,21 @@ export function createWatch(canvasEl, opts = {}) {
   claspCover.position.z = -1.55;
   const claspLip = new THREE.Mesh(new RoundedBoxGeometry(8, 2.2, 0.9, 2, 0.4), mat.claspPolished);
   claspLip.position.set(0, 9.6, -1.9);
-  clasp.add(claspBody, claspCover, claspLip);
+  const claspTex = makeClaspTex();
+  const claspMark = new THREE.Mesh(
+    new THREE.PlaneGeometry(9, 4.5),
+    new THREE.MeshStandardMaterial({ color: 0x2c3036, transparent: true, alphaMap: claspTex, bumpMap: claspTex, bumpScale: -1, metalness: 1, roughness: 0.5, depthWrite: false })
+  );
+  claspMark.rotation.y = Math.PI;
+  claspMark.position.z = -2.07;
+  claspMark.userData.noAO = true;
+  const btnGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.8, 32);
+  btnGeo.rotateZ(Math.PI / 2);
+  const btnL = new THREE.Mesh(btnGeo, mat.claspPolished);
+  const btnR = btnL.clone();
+  btnL.position.set(-9.2, 2, -0.4);
+  btnR.position.set(9.2, 2, -0.4);
+  clasp.add(claspBody, claspCover, claspLip, claspMark, btnL, btnR);
   const claspLoop = new THREE.Vector3(0, 0, C.z - R + 1.3);
   const claspFlat = new THREE.Vector3(0, -(P0.y + rows * pitch + 10.8), TABLE_Z + 1.25);
   clasp.position.copy(claspLoop);
@@ -796,6 +904,37 @@ export function createWatch(canvasEl, opts = {}) {
   for (const o of [crystal, crystalEdge, print, backPrint]) {
     o.castShadow = false;
     o.receiveShadow = o === print;
+    o.userData.noAO = true;
+  }
+  ground.userData.noAO = true;
+  contact.userData.noAO = true;
+  claspMark.castShadow = false;
+
+  /* ----------------------------------------------------------------- ambient occlusion */
+  // Screen-space AO darkens every crevice and contact point: under the hands and
+  // indices, round the bezel, between links. Skipped on small screens for speed.
+  let composer = null;
+  if (!small && opts.ao !== false) {
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    composer = new EffectComposer(renderer, rt);
+    composer.addPass(new RenderPass(scene, camera));
+    const gtao = new GTAOPass(scene, camera, 1, 1);
+    gtao.blendIntensity = 1;
+    gtao.updateGtaoMaterial({ radius: 4.5, distanceExponent: 1.2, thickness: 3, scale: 1.9, samples: 16, distanceFallOff: 1 });
+    gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 16 });
+    // keep glass, decals and the invisible desk out of the AO buffers
+    const hideFlagged = gtao._overrideVisibility.bind(gtao);
+    gtao._overrideVisibility = function () {
+      hideFlagged();
+      scene.traverse((o) => {
+        if (o.userData.noAO && o.visible) {
+          o.visible = false;
+          this._visibilityCache.push(o);
+        }
+      });
+    };
+    composer.addPass(gtao);
+    composer.addPass(new OutputPass());
   }
 
   /* ----------------------------------------------------------------- label anchors */
@@ -832,6 +971,10 @@ export function createWatch(canvasEl, opts = {}) {
     width = window.innerWidth;
     height = window.innerHeight;
     renderer.setSize(width, height, false);
+    if (composer) {
+      composer.setPixelRatio(renderer.getPixelRatio());
+      composer.setSize(width, height);
+    }
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     visH = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -998,7 +1141,10 @@ export function createWatch(canvasEl, opts = {}) {
     const reachV = scale * 40;
     const visible = Math.abs(root.position.y) - reachV < visH / 2 && Math.abs(root.position.x) - reachV < visW / 2;
     renderer.shadowMap.autoUpdate = visible;
-    if (visible || wasVisible) renderer.render(scene, camera);
+    if (visible || wasVisible) {
+      if (composer) composer.render(dt);
+      else renderer.render(scene, camera);
+    }
     wasVisible = visible;
 
     if (onFrame) onFrame({ explode: current.explode, labels: current.explode > 0.02 ? labelPositions() : null });

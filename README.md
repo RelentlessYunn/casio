@@ -20,8 +20,11 @@ concrete desk under window-blind shadows; a paper hang-tag; and minute-track tic
   - a tapered three-link bracelet (domed polished centre row, brushed outer rows, pins, fitted end
     links) with a fold-over clasp.
 
-  It is lit by a softbox studio environment and one shadow-casting light, so the hands, markers, bezel
-  and links all shadow each other and the desk. The hands show your local time, and the seconds hand
+  It is lit by a photographed studio HDRI (Poly Haven, CC0, in `docs/assets/hdri/`) and one
+  shadow-casting light, with screen-space ambient occlusion (GTAO) on larger screens. Every part
+  shadows the others and the desk. Polished steel carries fine hairline scratches; hands have recessed
+  lume, indices have lacquered grooves, the case has a brushed mid-band, an inner minute flange and
+  a crown gasket, and the clasp is engraved. The hands show your local time, and the seconds hand
   ticks like a quartz movement.
 - **The intro.** The watch lies on the blueprint and casts a real shadow. As you scroll, the desk dims,
   the watch lifts off, closes its bracelet and spins while the statement types in.
