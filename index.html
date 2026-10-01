@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>MTP-1302 — Time, solved.</title>
+  <meta name="description" content="Introducing MTP-1302: a 38.5 mm frontier model for temporal inference. Runs entirely on-device. A fan-made parody launch page for the Casio MTP-1302." />
+  <meta name="theme-color" content="#060708" />
+  <meta property="og:title" content="MTP-1302 — Time, solved." />
+  <meta property="og:description" content="A 38.5 mm frontier model for temporal inference. Zero parameters. Zero cloud. Zero opinions." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="modulepreload" href="vendor/three.min.js" />
+</head>
+<body>
+  <!-- Preloader -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__inner">
+      <div class="loader__mark">MTP<span>—</span>1302</div>
+      <div class="loader__row">
+        <span>Loading weights</span>
+        <span class="loader__count"><b id="loaderCount">0</b> g / 105 g</span>
+      </div>
+      <div class="loader__bar"><i id="loaderBar"></i></div>
+    </div>
+  </div>
+
+  <div class="bg-glow" aria-hidden="true"></div>
+  <canvas id="stage" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- Exploded-view labels (desktop) -->
+  <div class="xlabels" id="xlabels" aria-hidden="true"></div>
+
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <a class="nav__brand" href="#top" aria-label="MTP-1302 home">
+      <span class="tick-dot" aria-hidden="true"></span>MTP<span class="dash">—</span>1302
+    </a>
+    <div class="nav__links">
+      <a href="#model">Model</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#benchmarks">Benchmarks</a>
+      <a href="#research">Research</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <a class="btn btn--small btn--light" href="#pricing">Get access</a>
+  </nav>
+
+  <main>
+    <!-- HERO -->
+    <header class="hero" id="top" data-scene="hero">
+      <div class="hero__copy">
+        <a class="pill" href="#model">
+          <span class="pill__tag">New</span>
+          Generally available. For quite a while now.
+          <span aria-hidden="true">→</span>
+        </a>
+        <h1 class="hero__title">Time,<br /><em>solved.</em></h1>
+        <p class="hero__sub">
+          Introducing <strong>MTP-1302</strong> — a 38.5&nbsp;mm frontier model for temporal inference.
+          Runs entirely on-device. Zero parameters. Zero cloud. Zero opinions.
+        </p>
+        <div class="hero__ctas">
+          <a class="btn btn--light" href="#pricing">Start telling time</a>
+          <a class="btn btn--ghost" href="#research">Read the technical report <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+      <div class="hero__meta">
+        <div class="hero__specs mono">
+          <span>On-device</span><span>32,768 Hz</span><span>±20 s / month</span><span>~3-yr context</span>
+        </div>
+        <div class="hero__hint mono"><span class="hint-drag">Drag to inspect</span><span class="hint-scroll">Scroll</span></div>
+      </div>
+      <!-- Fallback when WebGL is unavailable -->
+      <svg class="fallback-watch" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="92" fill="#1b1d22" stroke="#c9ccd2" stroke-width="7" />
+        <circle cx="100" cy="100" r="80" fill="url(#fbDial)" />
+        <defs>
+          <radialGradient id="fbDial"><stop offset="0" stop-color="#2a55b8" /><stop offset="1" stop-color="#0d2257" /></radialGradient>
+        </defs>
+        <g id="fbIdx" stroke="#e6e8ec" stroke-width="3" stroke-linecap="round"></g>
+        <line id="fbH" x1="100" y1="106" x2="100" y2="58" stroke="#eef0f3" stroke-width="5" stroke-linecap="round" />
+        <line id="fbM" x1="100" y1="108" x2="100" y2="34" stroke="#eef0f3" stroke-width="3.5" stroke-linecap="round" />
+        <line id="fbS" x1="100" y1="116" x2="100" y2="28" stroke="#eef0f3" stroke-width="1.2" />
+        <circle cx="100" cy="100" r="3.5" fill="#eef0f3" />
+      </svg>
+    </header>
+
+    <!-- DEPLOYED AT -->
+    <section class="deployed" aria-label="Deployed at">
+      <p class="mono eyebrow eyebrow--center">Already deployed on wrists at</p>
+      <div class="marquee" data-marquee>
+        <div class="marquee__track">
+          <span>Your dad</span><i>✦</i>
+          <span>Every geography teacher</span><i>✦</i>
+          <span>Airport lost &amp; found</span><i>✦</i>
+          <span>Exam halls, worldwide</span><i>✦</i>
+          <span>Your first job</span><i>✦</i>
+          <span>The bottom of a drawer</span><i>✦</i>
+          <span>Night-shift nurses</span><i>✦</i>
+          <span>That one uncle at weddings</span><i>✦</i>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATEMENT -->
+    <section class="statement" data-scene="statement">
+      <p class="statement__text" data-words>
+        For as long as there has been computing, one question has been harder than all the others:
+        <em>what time is it?</em> Frontier models still can't answer it. They need tools. They need
+        the internet. They apologise. So we built something different.
+      </p>
+    </section>
+
+    <!-- MULTI-TICK PREDICTION -->
+    <section class="section mtp" id="model" data-scene="mtp">
+      <div class="mtp__copy reveal">
+        <p class="mono eyebrow"><span>01</span> Multi-Tick Prediction</p>
+        <h2 class="h2">It doesn't predict the next token. It predicts the <em>next tick.</em></h2>
+        <p class="lede">
+          Language models generate one token at a time. MTP-1302 pioneered <strong>Multi-Tick Prediction</strong>:
+          a 32,768&nbsp;Hz quartz oscillator, halved fifteen times, yielding exactly one tick per second.
+          Then it does it again. It has been doing it, uninterrupted, since you started reading this sentence.
+        </p>
+        <div class="console" role="group" aria-label="Live inference">
+          <div class="console__bar mono"><i></i><i></i><i></i><span>live inference · on-device</span></div>
+          <div class="console__body mono">
+            <p><span class="muted">&gt; prompt</span> what time is it?</p>
+            <p><span class="accent">&gt; mtp-1302</span> <span id="liveTime" class="live-time">--:--:--</span><span class="caret" aria-hidden="true"></span></p>
+            <div class="console__stats">
+              <div><span class="muted">latency</span><b>0 ms</b></div>
+              <div><span class="muted">tokens generated</span><b>0</b></div>
+              <div><span class="muted">ticks this session</span><b id="tickCount">0</b></div>
+              <div><span class="muted">hallucinations</span><b>0</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="section stats" data-scene="stats" aria-labelledby="statsTitle">
+      <div class="container">
+        <p class="mono eyebrow reveal"><span>02</span> By the numbers</p>
+        <h2 class="h2 reveal" id="statsTitle">Frontier performance.<br />Wrist-sized footprint.</h2>
+        <div class="stat-grid">
+          <article class="stat reveal">
+            <p class="stat__label mono">Compute</p>
+            <p class="stat__value"><span data-count="32768" data-format="comma">32,768</span><small>Hz</small></p>
+            <p class="stat__note">Quartz oscillations per second. No GPUs were harmed.</p>
+          </article>
+          <article class="stat reveal">
+            <p class="stat__label mono">Drift</p>
+            <p class="stat__value">±<span data-count="20">20</span><small>s / mo</small></p>
+            <p class="stat__note">Most models drift further than that in a single conversation.</p>
+          </article>
+          <article class="stat reveal">
+            <p class="stat__label mono">Context window</p>
+            <p class="stat__value">~<span data-count="3">3</span><small>years</small></p>
+            <p class="stat__note">≈ 94,608,000 seconds of uninterrupted context on one SR626SW cell.</p>
+          </article>
+          <article class="stat reveal">
+            <p class="stat__label mono">Water resistance</p>
+            <p class="stat__value"><span data-count="50">50</span><small>m</small></p>
+            <p class="stat__note">Depth-aligned. Survives rain, washing up and the occasional swim.</p>
+          </article>
+          <article class="stat reveal">
+            <p class="stat__label mono">Attention heads</p>
+            <p class="stat__value"><span data-count="3">3</span><small>heads</small></p>
+            <p class="stat__note">Hour, minute, second. Each one attends to exactly one thing.</p>
+          </article>
+          <article class="stat reveal">
+            <p class="stat__label mono">Parameters</p>
+            <p class="stat__value"><span data-count="0">0</span><small>B</small></p>
+            <p class="stat__note">Not even a temperature setting. It runs at room temperature.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE (scroll-driven exploded view) -->
+    <section class="arch" id="architecture" data-scene="explode" aria-labelledby="archTitle">
+      <div class="arch__sticky">
+        <div class="arch__copy">
+          <p class="mono eyebrow"><span>03</span> Architecture</p>
+          <h2 class="h2" id="archTitle">Eight layers.<br /><em>Zero transformers.</em></h2>
+          <div class="arch__layer" aria-live="polite">
+            <p class="mono arch__count"><span id="layerIdx">01</span> / 08</p>
+            <h3 id="layerName">Mineral glass</h3>
+            <p id="layerDesc">A hardened prompt shield. Deflects scratches, coffee and prompt injection.</p>
+          </div>
+          <ol class="arch__steps" id="layerSteps" aria-label="Layers"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- BENCHMARKS -->
+    <section class="section bench" id="benchmarks" data-scene="off" aria-labelledby="benchTitle">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="mono eyebrow reveal"><span>04</span> Benchmarks</p>
+            <h2 class="h2 reveal" id="benchTitle">State of the art on <em>TimeBench.</em></h2>
+          </div>
+          <p class="lede reveal">Evaluated on a single wrist over a single afternoon. Higher is better. Scores are the share of trials passed.</p>
+        </div>
+
+        <div class="chart reveal" id="chart">
+          <div class="chart__legend mono">
+            <span><i class="sw sw--mtp"></i>MTP-1302</span>
+            <span><i class="sw sw--bot"></i>Frontier Chatbot<sup>†</sup></span>
+          </div>
+          <div class="chart__rows" id="chartRows"></div>
+          <div class="chart__tip mono" id="chartTip" role="tooltip"></div>
+        </div>
+        <details class="table-view reveal">
+          <summary class="mono">View as table</summary>
+          <table id="chartTable"></table>
+        </details>
+        <p class="footnote mono reveal">
+          † A composite of no particular product. * Declined to answer; recommended checking a clock.
+          All results self-reported and peer-reviewed by nobody.
+        </p>
+      </div>
+    </section>
+
+    <!-- CAPABILITIES -->
+    <section class="section caps" id="capabilities" data-scene="off" aria-labelledby="capsTitle">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="mono eyebrow reveal"><span>05</span> Capabilities</p>
+            <h2 class="h2 reveal" id="capsTitle">Everything you'd expect from a frontier model. <em>Within reason.</em></h2>
+          </div>
+        </div>
+        <div class="cap-grid">
+          <article class="cap reveal"><p class="cap__k mono">Agentic</p><h3>Not agentic.</h3><p>It will not book your flight. It will tell you that you're late for it.</p></article>
+          <article class="cap reveal"><p class="cap__k mono">Multimodal</p><h3>Two modalities.</h3><p>Looking, and glancing. Luminous hands unlock a third: squinting in the dark.</p></article>
+          <article class="cap reveal"><p class="cap__k mono">Tool use</p><h3>One tool: the crown.</h3><p>Pull to the first click to fine-tune the date. Second click to fine-tune the time.</p></article>
+          <article class="cap reveal"><p class="cap__k mono">Memory</p><h3>Remembers the date.</h3><p>Forgets that some months are shorter than others. Every single time.</p></article>
+          <article class="cap reveal"><p class="cap__k mono">Alignment</p><h3>Aligned by design.</h3><p>Rotates clockwise only. Has never once attempted to leave its case.</p></article>
+          <article class="cap reveal"><p class="cap__k mono">Deployment</p><h3>Edge-native.</h3><p>Specifically, the edge of your wrist. Left and right are both supported.</p></article>
+          <article class="cap reveal"><p class="cap__k mono">Privacy</p><h3>Collects nothing.</h3><p>Has no idea who you are. Has made it clear it does not want to know.</p></article>
+          <article class="cap reveal"><p class="cap__k mono">Open weights</p><h3>105 g, fully released.</h3><p>Every gram, available to anyone with a wrist. No licence agreement required.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESEARCH -->
+    <section class="section research" id="research" data-scene="off" aria-labelledby="researchTitle">
+      <div class="container research__grid">
+        <div>
+          <p class="mono eyebrow reveal"><span>06</span> Research</p>
+          <h2 class="h2 reveal" id="researchTitle">Read the <em>technical report.</em></h2>
+          <p class="lede reveal">Twelve pages. Eleven of them are the dial.</p>
+        </div>
+        <article class="paper reveal">
+          <p class="paper__meta mono">arXiv:1302.0001 [time.QZ] · v1302</p>
+          <h3 class="paper__title">MTP-1302: Multi-Tick Prediction Is All You Need</h3>
+          <p class="paper__authors">The MTP Team<sup>*</sup></p>
+          <p class="paper__abstract">
+            <b>Abstract.</b> We present MTP-1302, a three-head analog model for temporal inference. Unlike prior
+            approaches, MTP-1302 is trained on zero tokens, requires zero GPUs and achieves state-of-the-art
+            results on TimeBench with a drift of ±20 seconds per month. We find that scaling laws do not
+            apply: the model is, and will remain, 38.5&nbsp;mm. We release all weights (105&nbsp;g).
+          </p>
+          <p class="paper__fn mono">* Equal contribution, mostly from the battery.</p>
+          <div class="paper__actions">
+            <button class="btn btn--light btn--small" type="button" data-toast="The PDF is the watch. Look at it.">PDF</button>
+            <a class="btn btn--ghost btn--small" href="#modelcard">Model card</a>
+            <button class="btn btn--ghost btn--small" type="button" data-toast="Weights downloaded: 105 g. Please use both hands.">Weights · 105 g</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="container">
+        <div class="modelcard reveal" id="modelcard">
+          <div class="modelcard__head">
+            <p class="mono eyebrow">Model card</p>
+            <p class="mono muted">mtp-1302 · stable · since forever</p>
+          </div>
+          <dl class="modelcard__grid">
+            <div><dt>Parameters</dt><dd>0</dd></div>
+            <div><dt>Active parameters</dt><dd>0 (always on)</dd></div>
+            <div><dt>Training tokens</dt><dd>0</dd></div>
+            <div><dt>Training compute</dt><dd>0 FLOPs</dd></div>
+            <div><dt>Inference engine</dt><dd>Quartz module 2784</dd></div>
+            <div><dt>Clock rate</dt><dd>32,768 Hz</dd></div>
+            <div><dt>Accuracy</dt><dd>±20 s / month</dd></div>
+            <div><dt>Knowledge cutoff</dt><dd>Right now. Continuously.</dd></div>
+            <div><dt>Context window</dt><dd>~3 years (SR626SW)</dd></div>
+            <div><dt>Form factor</dt><dd>44.2 × 38.5 × 9.4 mm</dd></div>
+            <div><dt>Weights</dt><dd>105 g, open</dd></div>
+            <div><dt>Prompt shield</dt><dd>Mineral glass</dd></div>
+            <div><dt>Water resistance</dt><dd>50 m</dd></div>
+            <div><dt>Interface</dt><dd>3 hands, date, luminous hands</dd></div>
+            <div><dt>Housing</dt><dd>Stainless steel case &amp; bracelet</dd></div>
+            <div><dt>Licence</dt><dd>Wear it however you like</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIALS -->
+    <section class="section voices" data-scene="off" aria-labelledby="voicesTitle">
+      <div class="container">
+        <p class="mono eyebrow reveal"><span>07</span> Early access</p>
+        <h2 class="h2 reveal" id="voicesTitle">What early users are saying.</h2>
+      </div>
+      <div class="voices__rows">
+        <div class="marquee marquee--cards" data-marquee>
+          <div class="marquee__track">
+            <figure class="quote"><blockquote>“I asked it what time it was. It told me. No follow-up questions. No disclaimer. No ‘great question’.”</blockquote><figcaption>Staff engineer, still on call</figcaption></figure>
+            <figure class="quote"><blockquote>“Our cluster was down for six hours. MTP-1302 was not.”</blockquote><figcaption>SRE, asked to remain anonymous</figcaption></figure>
+            <figure class="quote"><blockquote>“My dad has had the same one since before I was born. Better uptime than anything I've ever shipped.”</blockquote><figcaption>Anonymous LocalLLaMA user</figcaption></figure>
+            <figure class="quote"><blockquote>“Finally: local inference running on a battery the size of a lentil.”</blockquote><figcaption>Hobbyist, self-hosted everything</figcaption></figure>
+          </div>
+        </div>
+        <div class="marquee marquee--cards marquee--reverse" data-marquee>
+          <div class="marquee__track">
+            <figure class="quote"><blockquote>“Zero hallucinations. Once it said it was the 31st on a Thursday in June, but honestly that's on me.”</blockquote><figcaption>Early adopter</figcaption></figure>
+            <figure class="quote"><blockquote>“I benchmarked it against my phone. My phone died.”</blockquote><figcaption>PhD student, year six</figcaption></figure>
+            <figure class="quote"><blockquote>“The only model I trust with my calendar. It doesn't know about my meetings. That's why.”</blockquote><figcaption>Product manager</figcaption></figure>
+            <figure class="quote"><blockquote>“Quietly the most widely deployed model on earth. Nobody ever writes about it.”</blockquote><figcaption>Someone at gate 14</figcaption></figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONFIGURATOR + PRICING -->
+    <section class="section config" id="pricing" data-scene="config" aria-labelledby="configTitle">
+      <div class="container config__grid">
+        <div class="config__stage" aria-hidden="true"></div>
+        <div class="config__panel">
+          <p class="mono eyebrow reveal"><span>08</span> Get access</p>
+          <h2 class="h2 reveal" id="configTitle">Choose your <em>checkpoint.</em></h2>
+          <div class="checkpoints reveal" role="radiogroup" aria-label="Dial colour">
+            <button class="ckpt" role="radio" aria-checked="false" data-dial="black">
+              <i class="ckpt__sw" style="--sw:#15171b"></i>
+              <span class="ckpt__name">mtp-1302-1a <b>Base</b></span>
+              <span class="ckpt__desc">Black sunburst. Goes with everything, including nothing in particular.</span>
+            </button>
+            <button class="ckpt" role="radio" aria-checked="true" data-dial="blue">
+              <i class="ckpt__sw" style="--sw:#1c3f93"></i>
+              <span class="ckpt__name">mtp-1302-2a <b>Instruct</b></span>
+              <span class="ckpt__desc">Blue sunburst. Fine-tuned to receive compliments.</span>
+            </button>
+            <button class="ckpt" role="radio" aria-checked="false" data-dial="green">
+              <i class="ckpt__sw" style="--sw:#1c5a42"></i>
+              <span class="ckpt__name">mtp-1302-3a <b>Frontier</b></span>
+              <span class="ckpt__desc">Green sunburst. Our most capable dial colour.</span>
+            </button>
+            <button class="ckpt" role="radio" aria-checked="false" data-dial="white">
+              <i class="ckpt__sw" style="--sw:#d9dbdd"></i>
+              <span class="ckpt__name">mtp-1302-7a <b>Lite</b></span>
+              <span class="ckpt__desc">Silver-white. Same model, lighter latent space.</span>
+            </button>
+          </div>
+          <p class="footnote mono">Dial colours vary by region and retailer. The model does not.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tiers-sec" data-scene="off" aria-label="Pricing tiers">
+      <div class="container">
+        <div class="tiers">
+          <article class="tier reveal">
+            <p class="tier__name mono">Free</p>
+            <p class="tier__price">$0</p>
+            <p class="tier__what">Ask a stranger what time it is.</p>
+            <ul>
+              <li>Rate-limited by social anxiety</li>
+              <li>Availability varies by stranger</li>
+              <li>May answer with their whole life story</li>
+            </ul>
+            <button class="btn btn--ghost btn--block" type="button" data-toast="Excuse me, do you have the time?">Ask someone</button>
+          </article>
+          <article class="tier tier--featured reveal">
+            <p class="tier__badge mono">Most deployed</p>
+            <p class="tier__name mono">Pro · MTP-1302</p>
+            <p class="tier__price">Once</p>
+            <p class="tier__sub mono">≈ one month of an AI subscription</p>
+            <p class="tier__what">Unlimited inference. Billed never again.</p>
+            <ul>
+              <li>No rate limits (1 tick / s, guaranteed)</li>
+              <li>~3-year context window per battery</li>
+              <li>50 m water resistance</li>
+              <li>Stainless steel bracelet, triple-fold clasp</li>
+              <li>No account. No login. No updates.</li>
+            </ul>
+            <a class="btn btn--light btn--block" href="https://www.google.com/search?q=Casio+MTP-1302" target="_blank" rel="noopener">Find one near you <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="tier reveal">
+            <p class="tier__name mono">Enterprise</p>
+            <p class="tier__price">Two</p>
+            <p class="tier__what">One for the office, one for the drawer.</p>
+            <ul>
+              <li>Multi-wrist deployment</li>
+              <li>Redundancy (drawer unit)</li>
+              <li>Dedicated support: you</li>
+            </ul>
+            <button class="btn btn--ghost btn--block" type="button" data-toast="There is no sales team. There is only the watch.">Contact sales</button>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- REVEAL -->
+    <section class="reveal-end" id="end" data-scene="reveal" aria-labelledby="endTitle">
+      <div class="reveal-end__sticky">
+        <div class="reveal-end__inner">
+          <h2 class="end-title" id="endTitle">It's a watch.</h2>
+          <p class="end-copy">
+            No AI. No cloud. No model. A quartz crystal, a coin cell and three hands — the same thing it was
+            before anyone wrote this page. It runs for years without being asked, and it has never once asked
+            you to rate its response.
+          </p>
+          <p class="end-copy end-copy--strong">Maybe that was always the frontier.</p>
+          <p class="end-time mono">It is <span id="endTime">--:--:--</span>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__grid">
+      <div>
+        <a class="nav__brand" href="#top"><span class="tick-dot" aria-hidden="true"></span>MTP<span class="dash">—</span>1302</a>
+        <p class="muted small">Time, solved. Again.</p>
+      </div>
+      <p class="footer__legal small muted">
+        A fan-made parody, in homage to <a href="https://oryzo.ai" target="_blank" rel="noopener">ORYZO</a> by Lusion.
+        Not affiliated with, sponsored or endorsed by CASIO Computer Co., Ltd. CASIO and MTP-1302 belong to their
+        respective owners. Specs are from public product listings. The watch is real; the AI is not.
+      </p>
+    </div>
+  </footer>
+
+  <div class="toast mono" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
