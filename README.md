@@ -12,9 +12,17 @@ concrete desk under window-blind shadows; a paper hang-tag; and minute-track tic
 
 ## What's in it
 
-- **Real-time 3D watch.** Built procedurally in three.js: case, lugs, crown, applied indices, a date
-  window showing today's date, a three-link bracelet and a sunburst-dial shader. The hands show your
-  local time, and the seconds hand ticks like a quartz movement.
+- **Real-time 3D watch.** Built procedurally in three.js and modelled on the real MTP-1302:
+  - a polished case and bezel, lugs with spring-bar holes, and a knurled crown;
+  - a lacquered sunburst dial (anisotropic, clear-coated) with printed CASIO and WATER RESIST,
+    faceted applied indices and a framed date window showing today's date;
+  - bevelled hands with lume strips, and an engraved caseback;
+  - a tapered three-link bracelet (domed polished centre row, brushed outer rows, pins, fitted end
+    links) with a fold-over clasp.
+
+  It is lit by a softbox studio environment and one shadow-casting light, so the hands, markers, bezel
+  and links all shadow each other and the desk. The hands show your local time, and the seconds hand
+  ticks like a quartz movement.
 - **The intro.** The watch lies on the blueprint and casts a real shadow. As you scroll, the desk dims,
   the watch lifts off, closes its bracelet and spins while the statement types in.
 - **The giant wordmark** shrinks and docks into the header as you scroll.

@@ -268,7 +268,15 @@ main, .footer { position: relative; z-index: 2; }
 .brand__tag > span { display: inline-block; overflow: hidden; vertical-align: top; }
 .brand__tag > span > span { display: inline-block; will-change: transform; }
 
-.links { display: flex; gap: 22px; }
+.links {
+  display: flex;
+  gap: 22px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(10, 15, 26, 0.5);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
 .flip {
   position: relative;
   display: inline-block;
