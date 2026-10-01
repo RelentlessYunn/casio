@@ -1,8 +1,11 @@
+import { paintDesk } from './desk.js';
+
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const TAU = Math.PI * 2;
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia('(pointer: fine)').matches;
@@ -11,7 +14,7 @@ const isMobile = () => window.innerWidth < 860;
 document.body.classList.add('is-loading');
 
 /* ------------------------------------------------------------------------
-   Copy for the exploded architecture view
+   Copy & data
    ------------------------------------------------------------------------ */
 
 const LAYER_COPY = [
@@ -25,57 +28,73 @@ const LAYER_COPY = [
   { id: 'caseback', name: 'Stainless caseback', label: 'Closed source', desc: 'The only closed-source part of the release. Please do not open in production.' },
 ];
 
-// Page accent colour that follows the selected dial
-const DIAL_ACCENTS = { black: '#c9ced6', blue: '#7aa2ff', green: '#5fd3a4', white: '#e9e6dc' };
-
 const BENCH = [
-  { name: 'TimeBench-1302', q: '“What time is it?”', mtp: 99.9992, bot: 0, note: 'Frontier Chatbot declined to answer and recommended checking a clock.', star: true },
+  { name: 'TimeBench', q: '“What time is it?”', mtp: 99.9992, bot: 0, note: 'Frontier chatbot declined to answer and recommended checking a clock.', star: true },
   { name: 'OfflineQA', q: 'Answers with no internet connection', mtp: 100, bot: 0 },
   { name: 'GlanceLatency', q: 'Responds in under one second', mtp: 100, bot: 9 },
   { name: 'SycophancyEval', q: 'Never opens with “Great question!”', mtp: 100, bot: 4 },
-  { name: 'DunkBench', q: 'Still works after a 50 m dive', mtp: 100, bot: 0, note: 'Frontier Chatbot did not attend the dive.' },
+  { name: 'DunkBench', q: 'Still works after a 50 m dive', mtp: 100, bot: 0, note: 'Frontier chatbot did not attend the dive.' },
 ];
 
 /* ------------------------------------------------------------------------
    Scroll-driven scene states for the 3D watch.
-   x / y are fractions of the half-viewport; size is the case diameter as a
-   fraction of the smaller viewport dimension.
+   x / y: fractions of the half-viewport. size: case diameter as a fraction of
+   min(viewport height, 1.1 × width). z: world units towards the camera.
    ------------------------------------------------------------------------ */
+
+const BASE = { x: 0, y: 0, z: 0, size: 0.36, rx: 0, ry: 0, rz: 0, explode: 0, dim: 1, bracelet: 1, loop: 1, shadow: 0 };
+
+// Fit the watch into a DOM box, so the 3D object becomes part of the flat layout.
+function dock(el, fill, cy = 0.5) {
+  const r = el.getBoundingClientRect();
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const casePx = Math.min(r.width * 0.5, r.height * 0.32) * fill;
+  return {
+    x: ((r.left + r.width / 2) / W) * 2 - 1,
+    y: -(((r.top + r.height * cy) / H) * 2 - 1),
+    size: casePx / Math.min(H, W * 1.1),
+  };
+}
 
 function sceneState(name, p, m) {
   switch (name) {
-    case 'hero':
-      return m
-        ? { x: 0, y: 0.4, size: 0.5, rx: 0.32, ry: -0.32, rz: 0.12, explode: 0, dim: 1, bracelet: 1 }
-        : { x: 0.44, y: -0.02, size: 0.42, rx: 0.2, ry: -0.46, rz: 0.14, explode: 0, dim: 1, bracelet: 1 };
-    case 'statement':
-      return { x: m ? 0 : 0.08, y: 0, size: m ? 0.5 : 0.36, rx: 0.08, ry: -1.42, rz: 0, explode: 0, dim: 0.15, bracelet: 1 };
-    case 'mtp':
-      return m
-        ? { x: 0, y: 0.44, size: 0.6, rx: 0.05, ry: 0.12, rz: 0, explode: 0, dim: 1, bracelet: 1 }
-        : { x: -0.46, y: 0, size: 0.6, rx: 0.04, ry: 0.22, rz: 0, explode: 0, dim: 1, bracelet: 1 };
-    case 'stats':
-      return { x: m ? 0.2 : 0.74, y: m ? 0.95 : 0.7, size: 0.3, rx: 1.0, ry: 0.5, rz: -0.6, explode: 0, dim: 0.4, bracelet: 1 };
+    case 'hero': {
+      const a = ease(clamp01((p - 0.02) / 0.24)); // lift off the desk
+      const b = ease(clamp01((p - 0.28) / 0.38)); // spin
+      const c = ease(clamp01((p - 0.7) / 0.28)); // settle
+      const rest = m ? { x: 0, y: 0.2, size: 0.52 } : { x: 0.04, y: -0.02, size: 0.31 };
+      return {
+        ...BASE,
+        x: lerp(rest.x, 0, a),
+        y: lerp(rest.y, m ? -0.02 : 0, a),
+        z: (m ? 24 : 55) * a * (1 - c),
+        size: m ? lerp(lerp(rest.size, 0.4, a), 0.5, c) : lerp(rest.size, 0.34, c),
+        rx: 0.42 * a * (1 - c) + 0.08 * c,
+        ry: -0.4 * a * (1 - c) + TAU * b,
+        rz: lerp(-0.42, 0.12, a) * (1 - c),
+        loop: a,
+        shadow: 1 - clamp01(a * 1.6),
+      };
+    }
+    case 'features':
+      return { ...BASE, ...dock($('#featStage'), 1, 0.42), rx: 0.12, ry: TAU - 0.35, rz: 0.05 };
     case 'explode': {
       const ex = clamp01(p / 0.12);
-      return m
-        ? { x: 0, y: 0.42, size: 0.36, rx: -1.0, ry: 0, rz: -0.55, explode: ex, dim: 1, bracelet: 1 - ex }
-        : { x: 0.14, y: -0.07, size: 0.35, rx: -1.02, ry: 0, rz: -0.55, explode: ex, dim: 1, bracelet: 1 - ex };
+      const pose = m ? { x: 0, y: 0.42, size: 0.36 } : { x: 0.14, y: -0.07, size: 0.35 };
+      return { ...BASE, ...pose, rx: -1.02, ry: TAU, rz: -0.55, explode: ex, bracelet: 1 - ex };
     }
-    case 'config':
-      return m
-        ? { x: 0, y: 0.42, size: 0.5, rx: 0.18, ry: -0.3, rz: 0.1, explode: 0, dim: 1, bracelet: 1 }
-        : { x: -0.5, y: -0.02, size: 0.36, rx: 0.16, ry: -0.36, rz: 0.12, explode: 0, dim: 1, bracelet: 1 };
+    case 'product':
+      return { ...BASE, ...dock($('#slot'), 0.95, 0.5), rx: 0.14, ry: TAU - 0.38, rz: 0.1 };
     case 'reveal': {
-      // starts big and centred, then rises to make room for the closing lines
       const t = ease(clamp01((p - 0.12) / 0.3));
       return m
-        ? { x: 0, y: lerp(0.08, 0.57, t), size: lerp(0.66, 0.34, t), rx: 0, ry: 0, rz: 0, explode: 0, dim: 1, bracelet: 1 }
-        : { x: 0, y: lerp(0, 0.45, t), size: lerp(0.42, 0.22, t), rx: 0, ry: 0, rz: 0, explode: 0, dim: 1, bracelet: 1 };
+        ? { ...BASE, y: lerp(0.08, 0.57, t), size: lerp(0.66, 0.34, t), ry: TAU }
+        : { ...BASE, y: lerp(0, 0.45, t), size: lerp(0.42, 0.22, t), ry: TAU };
     }
     case 'off':
     default:
-      return { x: 0.3, y: 2.3, size: 0.32, rx: 1.4, ry: 0.8, rz: -1.4, explode: 0, dim: 1, bracelet: 1 };
+      return { ...BASE, x: 0.3, y: 2.4, size: 0.32, rx: 1.4, ry: TAU + 0.8, rz: -1.4 };
   }
 }
 
@@ -86,7 +105,7 @@ function mix(a, b, t) {
 }
 
 /* ------------------------------------------------------------------------
-   3D watch boot
+   3D boot
    ------------------------------------------------------------------------ */
 
 let watch = null;
@@ -131,7 +150,7 @@ function computeStops() {
 function stateAt(y) {
   const m = isMobile();
   if (!stops.length) return sceneState('hero', 0, m);
-  if (y <= stops[0].b) return sceneState(stops[0].name, 0, m);
+  if (y <= stops[0].b) return sceneState(stops[0].name, clamp01((y - stops[0].a) / Math.max(1, stops[0].b - stops[0].a)), m);
   for (let i = 0; i < stops.length; i++) {
     const s = stops[i];
     if (y >= s.a && y <= s.b) return sceneState(s.name, s.b > s.a ? (y - s.a) / (s.b - s.a) : 1, m);
@@ -141,12 +160,164 @@ function stateAt(y) {
       return mix(sceneState(s.name, 1, m), sceneState(n.name, 0, m), t);
     }
   }
-  const last = stops[stops.length - 1];
-  return sceneState(last.name, 1, m);
+  return sceneState(stops[stops.length - 1].name, 1, m);
 }
 
 /* ------------------------------------------------------------------------
-   Architecture section: layer steps + leader-line labels
+   Text splitting
+   ------------------------------------------------------------------------ */
+
+function splitLines(el) {
+  if (!el.dataset.text) el.dataset.text = el.textContent.trim().replace(/\s+/g, ' ');
+  const text = el.dataset.text;
+  el.setAttribute('aria-label', text);
+  el.innerHTML = text
+    .split(' ')
+    .map((w) => `<span class="w">${w}</span>`)
+    .join(' ');
+  const lines = [];
+  let top = null;
+  for (const w of $$('.w', el)) {
+    if (w.offsetTop !== top) {
+      lines.push([]);
+      top = w.offsetTop;
+    }
+    lines[lines.length - 1].push(w.textContent);
+  }
+  el.innerHTML = lines.map((l) => `<span class="line-mask" aria-hidden="true"><span>${l.join(' ')}</span></span>`).join('');
+  return $$('.line-mask > span', el);
+}
+
+function splitChars(el) {
+  const text = el.textContent;
+  el.setAttribute('aria-label', text.replace(/ /g, ' '));
+  el.innerHTML = [...text]
+    .map((c) => (c === ' ' ? ' ' : `<span class="ch" aria-hidden="true">${c === ' ' ? '&nbsp;' : c}</span>`))
+    .join('');
+  return $$('.ch', el);
+}
+
+/* ------------------------------------------------------------------------
+   Header: wordmark docks into the bar
+   ------------------------------------------------------------------------ */
+
+const topbar = $('#topbar');
+const brandMark = $('#brandMark');
+const brandDot = $('#brandDot');
+const brandHand = $('#brandHand');
+const tagWords = $$('#brandTag > span > span');
+let brandMetrics = null;
+
+function measureBrand() {
+  brandMark.style.transform = 'none';
+  const r = brandMark.getBoundingClientRect();
+  const smallW = isMobile() ? 96 : 124;
+  const s = smallW / r.width;
+  const barCenter = 32;
+  brandMetrics = { s, ty: barCenter - (r.top + (r.height * s) / 2) };
+}
+
+function updateBrand(y) {
+  if (!brandMetrics) measureBrand();
+  const k = clamp01(y / 360);
+  tagWords.forEach((w, i) => {
+    const t = clamp01((k - i * 0.035) / 0.22);
+    w.style.transform = `translateY(${-110 * t}%)`;
+  });
+  const e = ease(clamp01((k - 0.18) / 0.82));
+  const s = lerp(1, brandMetrics.s, e);
+  brandMark.style.transform = `translate3d(0, ${brandMetrics.ty * e}px, 0) scale(${s})`;
+  brandDot.style.opacity = String(1 - e);
+  brandDot.style.transform = `scale(${1 - e})`;
+  topbar.style.setProperty('--bar-o', String(e));
+}
+
+/* ------------------------------------------------------------------------
+   Intro timeline
+   ------------------------------------------------------------------------ */
+
+const intro = $('#intro');
+const desk = $('#desk');
+const deskDim = $('#deskDim');
+const glow = $('#glow');
+const introCard = $('#introCard');
+const introDash = $('#introDash');
+const introNote = $('#introNote');
+const scrollCue = $('#scrollCue');
+const hype = $('#hype');
+const hypeTitle = $('#hypeTitle');
+const hypeDesc = $('#hypeDesc');
+let copyLines = [];
+let tagLines = [];
+const titleChars = splitChars(hypeTitle);
+const descChars = splitChars(hypeDesc);
+
+function splitIntro() {
+  copyLines = splitLines($('#introCopy'));
+  tagLines = $$('[data-lines]', introCard).flatMap((el) => splitLines(el));
+}
+
+let lastDeskBlur = -1;
+function updateIntro() {
+  const r = intro.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const p = clamp01(-r.top / (r.height - vh));
+  const past = -r.top - (r.height - vh); // px scrolled beyond the pinned intro
+
+  copyLines.forEach((l, i) => {
+    const t = clamp01((p - 0.012 - i * 0.012) / 0.06);
+    l.style.opacity = String(1 - t);
+    l.style.transform = `translate3d(${40 * t}px, 0, 0)`;
+    l.style.filter = t > 0 ? `blur(${8 * t}px)` : '';
+  });
+  const nTag = tagLines.length;
+  tagLines.forEach((l, i) => {
+    const t = clamp01((p - 0.025 - (nTag - 1 - i) * 0.008) / 0.05);
+    l.style.transform = `translate3d(0, ${105 * ease(t)}%, 0)`;
+  });
+  introDash.style.transform = `scaleX(${1 - ease(clamp01((p - 0.03) / 0.05))})`;
+  introDash.style.transformOrigin = 'right';
+  const cardOut = clamp01((p - 0.08) / 0.03);
+  introCard.style.opacity = String(1 - cardOut);
+  introCard.style.visibility = cardOut >= 1 ? 'hidden' : '';
+  const cue = clamp01(p / 0.04);
+  introNote.style.opacity = String(1 - cue);
+  scrollCue.style.opacity = String(1 - cue);
+
+  // the desk dims and blurs away
+  const d = ease(clamp01((p - 0.03) / 0.18));
+  deskDim.style.opacity = String(d * 0.94);
+  const blur = Math.round(d * 12) / 2;
+  if (blur !== lastDeskBlur) {
+    desk.style.filter = blur > 0 ? `blur(${blur}px)` : '';
+    lastDeskBlur = blur;
+  }
+  desk.style.visibility = past > 0 ? 'hidden' : '';
+
+  // the statement
+  hype.classList.toggle('is-on', p > 0.24 && p < 0.8);
+  const N = titleChars.length;
+  titleChars.forEach((c, j) => {
+    c.style.opacity = String(clamp01((p - 0.3 - ((N - 1 - j) / N) * 0.1) / 0.04));
+  });
+  const M = descChars.length;
+  descChars.forEach((c, j) => {
+    c.style.opacity = String(clamp01((p - 0.32 - (j / M) * 0.13) / 0.04));
+  });
+  const enter = ease(clamp01((p - 0.29) / 0.16));
+  const out = ease(clamp01((p - 0.64) / 0.08));
+  hypeTitle.style.transform = `translate3d(0, ${lerp(-50, 0, enter) + 40 * out}%, 0)`;
+  hypeTitle.style.opacity = String(1 - out);
+  hypeDesc.style.transform = `translate3d(0, ${lerp(50, 0, enter) - 40 * out}%, 0)`;
+  hypeDesc.style.opacity = String(1 - out);
+
+  // a cool glow takes over as the intro ends, then fades into the page
+  const g = ease(clamp01((p - 0.7) / 0.25)) * (1 - clamp01(past / (vh * 0.9)));
+  glow.style.opacity = String(g);
+}
+
+/* ------------------------------------------------------------------------
+   Architecture: layer steps + leader-line labels
    ------------------------------------------------------------------------ */
 
 const arch = $('#architecture');
@@ -209,8 +380,7 @@ function updateArch() {
   const inView = r.top < window.innerHeight * 0.5 && r.bottom > window.innerHeight * 0.5;
   const steps = LAYER_COPY.length;
   const q = clamp01((p - 0.1) / 0.86) * steps;
-  const idx = Math.min(steps - 1, Math.floor(q));
-  setLayer(idx);
+  setLayer(Math.min(steps - 1, Math.floor(q)));
   stepFills.forEach((f, j) => {
     f.style.transform = `scaleX(${clamp01(q - j)})`;
   });
@@ -225,7 +395,6 @@ function drawLabels(info) {
   const pts = LAYER_COPY.map((l, i) => ({ i, ...info.labels[l.id] }));
   const maxX = Math.max(...pts.map((p) => p.x));
   const colX = Math.min(maxX + 70, W - 230);
-  // de-collide label rows
   const sorted = [...pts].sort((a, b) => a.y - b.y);
   const gap = 30;
   for (let k = 0; k < sorted.length; k++) {
@@ -245,77 +414,44 @@ function drawLabels(info) {
 }
 
 /* ------------------------------------------------------------------------
-   Scroll handler
+   Ending
    ------------------------------------------------------------------------ */
 
-const nav = $('#nav');
-const stage = $('#stage');
 const endEl = $('#end');
-
 function updateEnd() {
   const r = endEl.getBoundingClientRect();
   const p = clamp01(-r.top / (r.height - window.innerHeight));
   endEl.classList.toggle('is-text', p > 0.3);
 }
+
+/* ------------------------------------------------------------------------
+   Scroll handler
+   ------------------------------------------------------------------------ */
+
+const stage = $('#stage');
 let ticking = false;
+
+function update() {
+  const y = window.scrollY;
+  updateBrand(y);
+  updateIntro();
+  updateArch();
+  updateEnd();
+  if (watch) {
+    watch.setTarget(stateAt(y));
+    // once the last scene is done, let the canvas scroll away with the page
+    const last = stops[stops.length - 1];
+    stage.style.transform = last && y > last.b ? `translate3d(0, ${-(y - last.b)}px, 0)` : '';
+  }
+}
 
 function onScroll() {
   if (ticking) return;
   ticking = true;
   requestAnimationFrame(() => {
     ticking = false;
-    const y = window.scrollY;
-    nav.classList.toggle('is-scrolled', y > 30);
-    if (watch) {
-      watch.setTarget(stateAt(y));
-      // once the last scene is done, let the canvas scroll away with the page
-      const last = stops[stops.length - 1];
-      stage.style.transform = last && y > last.b ? `translate3d(0, ${-(y - last.b)}px, 0)` : '';
-    }
-    updateArch();
-    updateEnd();
-    updateWords();
+    update();
   });
-}
-
-/* ------------------------------------------------------------------------
-   Statement: word-by-word reveal
-   ------------------------------------------------------------------------ */
-
-const wordsEl = $('[data-words]');
-let words = [];
-(function splitWords() {
-  const wrap = (node) => {
-    for (const child of [...node.childNodes]) {
-      if (child.nodeType === Node.TEXT_NODE) {
-        const frag = document.createDocumentFragment();
-        child.textContent.split(/(\s+)/).forEach((part) => {
-          if (!part) return;
-          if (/^\s+$/.test(part)) frag.appendChild(document.createTextNode(' '));
-          else {
-            const s = document.createElement('span');
-            s.className = 'w';
-            s.textContent = part;
-            frag.appendChild(s);
-          }
-        });
-        node.replaceChild(frag, child);
-      } else if (child.nodeType === Node.ELEMENT_NODE) {
-        wrap(child);
-      }
-    }
-  };
-  wrap(wordsEl);
-  words = $$('.w', wordsEl);
-})();
-
-function updateWords() {
-  if (reduceMotion) return;
-  const r = wordsEl.getBoundingClientRect();
-  const vh = window.innerHeight;
-  const p = clamp01((vh * 0.85 - r.top) / (r.height + vh * 0.35));
-  const n = Math.round(p * words.length);
-  words.forEach((w, i) => w.classList.toggle('on', i < n));
 }
 
 /* ------------------------------------------------------------------------
@@ -323,16 +459,15 @@ function updateWords() {
    ------------------------------------------------------------------------ */
 
 const fmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const liveTime = $('#liveTime');
-const endTime = $('#endTime');
+const timeEls = $$('[data-time]');
 const tickCount = $('#tickCount');
 let ticks = 0;
 function updateClock() {
   const now = new Date();
   const t = fmt.format(now);
-  liveTime.textContent = t;
-  endTime.textContent = t;
+  timeEls.forEach((el) => (el.textContent = t));
   tickCount.textContent = ticks.toLocaleString();
+  brandHand.style.transform = `rotate(${now.getSeconds() * 6}deg)`;
   ticks++;
   setTimeout(updateClock, 1000 - (Date.now() % 1000) + 5);
 }
@@ -341,8 +476,8 @@ updateClock();
 function initFallbackClock() {
   const g = $('#fbIdx');
   for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
-    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const a = (i / 12) * TAU;
+    const l = document.createElementNS(svgNS, 'line');
     l.setAttribute('x1', 100 + Math.sin(a) * 64);
     l.setAttribute('y1', 100 - Math.cos(a) * 64);
     l.setAttribute('x2', 100 + Math.sin(a) * 74);
@@ -367,11 +502,10 @@ function initFallbackClock() {
    ------------------------------------------------------------------------ */
 
 const fmtPct = (v) => `${v % 1 === 0 ? v : v.toFixed(4)}%`;
-const rowsEl = $('#chartRows');
-rowsEl.innerHTML =
+$('#chartRows').innerHTML =
   BENCH.map(
     (b, i) => `
-  <div class="crow" tabindex="0" data-i="${i}" aria-label="${b.name}: MTP-1302 ${fmtPct(b.mtp)}, Frontier Chatbot ${fmtPct(b.bot)}">
+  <div class="crow" tabindex="0" data-i="${i}" aria-label="${b.name}: MTP-1302 ${fmtPct(b.mtp)}, Frontier chatbot ${fmtPct(b.bot)}">
     <div class="crow__label"><p class="crow__name">${b.name}</p><p class="crow__q">${b.q}</p></div>
     <div class="crow__bars">
       <div class="cbar cbar--mtp" style="--w:${b.mtp}%"><div class="cbar__fill" style="--d:${i * 0.08}s"></div><span class="cbar__val">${fmtPct(b.mtp)}</span></div>
@@ -384,7 +518,7 @@ rowsEl.innerHTML =
     .join('')}</div></div></div>`;
 
 $('#chartTable').innerHTML =
-  '<thead><tr><th>Benchmark</th><th>MTP-1302</th><th>Frontier Chatbot</th></tr></thead><tbody>' +
+  '<thead><tr><th>Benchmark</th><th>MTP-1302</th><th>Frontier chatbot</th></tr></thead><tbody>' +
   BENCH.map((b) => `<tr><td>${b.name} — ${b.q}</td><td>${fmtPct(b.mtp)}</td><td>${fmtPct(b.bot)}${b.star ? '*' : ''}</td></tr>`).join('') +
   '</tbody>';
 
@@ -395,7 +529,7 @@ function showTip(row, clientX) {
   tip.innerHTML = `
     <div class="tip-title">${b.name}</div>
     <div class="tip-row"><span><i class="sw sw--mtp"></i>MTP-1302</span><b>${fmtPct(b.mtp)}</b></div>
-    <div class="tip-row"><span><i class="sw sw--bot"></i>Frontier Chatbot</span><b>${fmtPct(b.bot)}</b></div>
+    <div class="tip-row"><span><i class="sw sw--bot"></i>Frontier chatbot</span><b>${fmtPct(b.bot)}</b></div>
     ${b.note ? `<div class="tip-note">${b.note}</div>` : ''}`;
   const cr = chart.getBoundingClientRect();
   const rr = row.getBoundingClientRect();
@@ -413,33 +547,14 @@ $$('.crow[data-i]').forEach((row) => {
 });
 
 /* ------------------------------------------------------------------------
-   Reveal-on-scroll + stat counters
+   Reveal-on-scroll, marquees, active nav link
    ------------------------------------------------------------------------ */
-
-const countUp = (el) => {
-  const target = +el.dataset.count;
-  const comma = el.dataset.format === 'comma';
-  const out = (v) => (comma ? Math.round(v).toLocaleString('en-US') : String(Math.round(v)));
-  if (reduceMotion || target === 0) {
-    el.textContent = out(target);
-    return;
-  }
-  const t0 = performance.now();
-  const dur = 1600;
-  const step = (t) => {
-    const k = clamp01((t - t0) / dur);
-    el.textContent = out(target * (1 - Math.pow(1 - k, 4)));
-    if (k < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-};
 
 const io = new IntersectionObserver(
   (entries) => {
     for (const e of entries) {
       if (!e.isIntersecting) continue;
       e.target.classList.add('is-in');
-      $$('[data-count]', e.target).forEach(countUp);
       io.unobserve(e.target);
     }
   },
@@ -447,27 +562,53 @@ const io = new IntersectionObserver(
 );
 $$('.reveal').forEach((el) => io.observe(el));
 
-/* ------------------------------------------------------------------------
-   Marquees: duplicate content for a seamless loop
-   ------------------------------------------------------------------------ */
-
 $$('[data-marquee] .marquee__track').forEach((track) => {
-  const items = [...track.children];
-  items.forEach((n) => {
+  [...track.children].forEach((n) => {
     const c = n.cloneNode(true);
     c.setAttribute('aria-hidden', 'true');
     track.appendChild(c);
   });
 });
 
+$$('.flip').forEach((a) => {
+  const label = a.dataset.label;
+  const chars = (cls) => `<span class="${cls}" aria-hidden="true">${[...label].map((c, i) => `<span class="ch" style="--i:${i}">${c}</span>`).join('')}</span>`;
+  a.setAttribute('aria-label', label);
+  a.innerHTML = chars('orig') + chars('clone');
+});
+const navLinks = $$('.links .flip');
+const navIo = new IntersectionObserver(
+  (entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      navLinks.forEach((a) => a.classList.toggle('is-active', a.getAttribute('href') === `#${e.target.id}`));
+    }
+  },
+  { rootMargin: '-45% 0px -50% 0px' }
+);
+$$('main section[id]').forEach((s) => navIo.observe(s));
+
+/* ------------------------------------------------------------------------
+   Mobile menu
+   ------------------------------------------------------------------------ */
+
+const menuBtn = $('#menuBtn');
+const drawer = $('#drawer');
+function setMenu(open) {
+  drawer.hidden = !open;
+  menuBtn.setAttribute('aria-expanded', String(open));
+  menuBtn.querySelector('span').textContent = open ? 'Close' : 'Menu';
+}
+menuBtn.addEventListener('click', () => setMenu(drawer.hidden));
+$$('[data-close]', drawer).forEach((el) => el.addEventListener('click', () => setMenu(false)));
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !drawer.hidden) setMenu(false);
+});
+
 /* ------------------------------------------------------------------------
    Checkpoints (dial colour)
    ------------------------------------------------------------------------ */
 
-const hexToRgb = (h) => {
-  const n = parseInt(h.slice(1), 16);
-  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
-};
 const ckpts = $$('.ckpt');
 function selectDial(btn, focus = false) {
   ckpts.forEach((b) => {
@@ -476,9 +617,7 @@ function selectDial(btn, focus = false) {
     b.tabIndex = on ? 0 : -1;
   });
   if (focus) btn.focus();
-  const accent = DIAL_ACCENTS[btn.dataset.dial];
-  document.documentElement.style.setProperty('--accent', accent);
-  document.documentElement.style.setProperty('--accent-rgb', hexToRgb(accent));
+  $('#ckptCode').textContent = btn.dataset.code;
   watch?.setDial(btn.dataset.dial);
 }
 ckpts.forEach((btn, i) => {
@@ -508,41 +647,6 @@ $$('[data-toast]').forEach((b) =>
 );
 
 /* ------------------------------------------------------------------------
-   Pointer: subtle tilt everywhere, drag-to-inspect in the hero
-   ------------------------------------------------------------------------ */
-
-function initPointer() {
-  if (!watch) return;
-  if (finePointer) {
-    window.addEventListener('pointermove', (e) => {
-      watch.setPointer((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
-    });
-  }
-  const hero = $('.hero');
-  let last = null;
-  hero.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'touch' || e.target.closest('a, button')) return;
-    last = { x: e.clientX, y: e.clientY };
-    hero.setPointerCapture(e.pointerId);
-    hero.classList.add('is-dragging');
-    watch.dragStart();
-  });
-  hero.addEventListener('pointermove', (e) => {
-    if (!last) return;
-    watch.dragMove(e.clientX - last.x, e.clientY - last.y);
-    last = { x: e.clientX, y: e.clientY };
-  });
-  const end = () => {
-    if (!last) return;
-    last = null;
-    hero.classList.remove('is-dragging');
-    watch.dragEnd();
-  };
-  hero.addEventListener('pointerup', end);
-  hero.addEventListener('pointercancel', end);
-}
-
-/* ------------------------------------------------------------------------
    Preloader → start
    ------------------------------------------------------------------------ */
 
@@ -566,18 +670,29 @@ function runLoader() {
 
 async function start() {
   const fontsReady = Promise.race([document.fonts?.ready ?? Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]);
-  const [has3D] = await Promise.all([boot3D(), runLoader(), fontsReady]);
+  const loader = runLoader();
+  await fontsReady;
+  paintDesk($('#deskCanvas'));
+  splitIntro();
+  const [has3D] = await Promise.all([boot3D(), loader]);
 
+  measureBrand();
   computeStops();
   if (has3D) {
     watch.refreshPrint();
     const s = stateAt(window.scrollY);
     watch.setTarget(s);
-    watch.jump({ ...s, y: s.y - 1.4, rx: s.rx + 1.1, rz: s.rz - 0.9, size: s.size * 0.6 });
+    // drop the watch onto the desk as the loader fades
+    if (window.scrollY < 10) watch.jump({ ...s, z: 80, rx: -0.35, rz: s.rz - 0.6, loop: 0.6, shadow: 0 });
+    else watch.jump(s);
     watch.start(drawLabels);
-    initPointer();
+    if (finePointer) {
+      window.addEventListener('pointermove', (e) => {
+        watch.setPointer((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
+      });
+    }
   }
-  onScroll();
+  update();
 
   $('#loader').classList.add('is-done');
   document.body.classList.remove('is-loading');
@@ -589,15 +704,12 @@ window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     watch?.resize();
+    splitIntro();
+    measureBrand();
     computeStops();
-    onScroll();
+    update();
   }, 120);
 });
-window.addEventListener('load', () => {
-  computeStops();
-  onScroll();
-});
-// fonts, images and reveals can shift section offsets after boot
 if ('ResizeObserver' in window) {
   new ResizeObserver(() => {
     computeStops();

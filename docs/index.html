@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>MTP-1302 AI</title>
+  <meta name="description" content="MTP-1302 isn't just a watch. A fan-made parody launch page for the Casio MTP-1302, presented as a frontier AI model." />
+  <meta name="theme-color" content="#0a0f1a" />
+  <meta property="og:title" content="MTP-1302 AI" />
+  <meta property="og:description" content="Zero parameters. Infinite uptime." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="modulepreload" href="vendor/three.min.js" />
+</head>
+<body>
+  <!-- Preloader -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__inner">
+      <svg class="wordmark loader__mark" viewBox="0 0 1000 150"><text x="0" y="136" textLength="1000" lengthAdjust="spacingAndGlyphs">MTP-1302</text></svg>
+      <div class="loader__row u">
+        <span>Loading weights</span>
+        <span><b id="loaderCount">0</b> g / 105 g</span>
+      </div>
+      <div class="loader__bar"><i id="loaderBar"></i></div>
+    </div>
+  </div>
+
+  <!-- The desk (hero backdrop) -->
+  <div class="desk" id="desk" aria-hidden="true">
+    <canvas id="deskCanvas"></canvas>
+    <div class="desk__blinds" id="blinds"></div>
+    <div class="desk__dim" id="deskDim"></div>
+  </div>
+  <div class="glow" id="glow" aria-hidden="true"></div>
+  <canvas id="stage" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="xlabels" id="xlabels" aria-hidden="true"></div>
+
+  <!-- Header: the wordmark starts huge and docks into the bar on scroll -->
+  <header class="topbar" id="topbar">
+    <div class="brand" id="brand">
+      <svg class="brand__clock" id="brandDot" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" /><line id="brandHand" x1="10" y1="10" x2="10" y2="3.4" /></svg>
+      <a class="brand__mark" id="brandMark" href="#intro" aria-label="MTP-1302 home">
+        <svg class="wordmark" viewBox="0 0 1000 150" aria-hidden="true"><text x="0" y="136" textLength="1000" lengthAdjust="spacingAndGlyphs">MTP-1302</text></svg>
+      </a>
+      <p class="brand__tag mono" id="brandTag" aria-label="Zero parameters. Infinite uptime.">
+        <span><span>Zero</span></span> <span><span>parameters.</span></span>
+        <span><span>Infinite</span></span> <span><span>uptime.</span></span>
+      </p>
+    </div>
+    <nav class="links" aria-label="Sections">
+      <a class="flip" href="#intro" data-label="Intro">Intro</a>
+      <a class="flip" href="#features" data-label="Features">Features</a>
+      <a class="flip" href="#architecture" data-label="Architecture">Architecture</a>
+      <a class="flip" href="#benchmarks" data-label="Benchmarks">Benchmarks</a>
+      <a class="flip" href="#research" data-label="Research">Research</a>
+      <a class="flip" href="#product" data-label="Product">Product</a>
+    </nav>
+    <button class="menu-btn u" id="menuBtn" aria-expanded="false" aria-controls="drawer"><i></i><span>Menu</span></button>
+  </header>
+
+  <div class="drawer" id="drawer" hidden>
+    <button class="drawer__scrim" data-close aria-label="Close menu"></button>
+    <aside class="drawer__panel">
+      <nav class="drawer__links u">
+        <a href="#intro" data-close>Intro</a>
+        <a href="#features" data-close>Features</a>
+        <a href="#architecture" data-close>Architecture</a>
+        <a href="#benchmarks" data-close>Benchmarks</a>
+        <a href="#research" data-close>Research</a>
+        <a href="#product" data-close>Product</a>
+      </nav>
+      <p class="drawer__foot u"><span class="muted">Current inference:</span><br /><span data-time>--:--:--</span></p>
+    </aside>
+  </div>
+
+  <main>
+    <!-- INTRO (pinned) -->
+    <section class="intro" id="intro" data-scene="hero">
+      <div class="intro__stage">
+        <div class="tag" id="introCard">
+          <i class="tag__hole"></i>
+          <p class="tag__code mono">Ref. MTP-1302 · Model card</p>
+          <p class="tag__head u" data-lines>The first frontier model you can wear.</p>
+          <span class="ticks" id="introDash"></span>
+          <p class="tag__desc" data-lines>Possibly the most over-qualified way to tell the time.</p>
+        </div>
+
+        <p class="intro-copy" id="introCopy" data-lines>
+          Engineered to tick, glow and survive fifty metres of water in real time. MTP-1302 turns the passage of time
+          into a product launch.
+        </p>
+
+        <div class="hype" id="hype">
+          <h1 class="hype__title u" id="hypeTitle" data-chars>It doesn't tell time.</h1>
+          <p class="hype__desc" id="hypeDesc" data-chars>It infers it. MTP-1302 is a paradigm shift in wrist-based temporal infrastructure.</p>
+        </div>
+
+        <div class="footnote mono" id="introNote">
+          <span class="ticks"></span>
+          <p>* Date requires manual<br />fine-tuning every 30 days</p>
+        </div>
+
+        <p class="scroll-cue mono" id="scrollCue"><i></i>Scroll to infer</p>
+
+        <svg class="fallback-watch" viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="92" fill="#2a2420" stroke="#d9d4cc" stroke-width="7" />
+          <circle cx="100" cy="100" r="80" fill="url(#fbDial)" />
+          <defs><radialGradient id="fbDial"><stop offset="0" stop-color="#2a55b8" /><stop offset="1" stop-color="#0d2257" /></radialGradient></defs>
+          <g id="fbIdx" stroke="#e6e8ec" stroke-width="3" stroke-linecap="round"></g>
+          <line id="fbH" x1="100" y1="106" x2="100" y2="58" stroke="#eef0f3" stroke-width="5" stroke-linecap="round" />
+          <line id="fbM" x1="100" y1="108" x2="100" y2="34" stroke="#eef0f3" stroke-width="3.5" stroke-linecap="round" />
+          <line id="fbS" x1="100" y1="116" x2="100" y2="28" stroke="#eef0f3" stroke-width="1.2" />
+          <circle cx="100" cy="100" r="3.5" fill="#eef0f3" />
+        </svg>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="sec features" id="features" data-scene="features" aria-labelledby="featTitle">
+      <div class="wrap">
+        <div class="sec-head u reveal"><span class="sec-head__idx mono">(01)</span><span>Features</span><i class="ticks"></i><span class="mono muted">Spec sheet</span></div>
+        <div class="features__grid">
+          <div class="features__stage" id="featStage">
+            <div class="frame">
+              <span class="frame__tl u">Fig. 01</span>
+              <span class="frame__tr u">Live inference</span>
+              <span class="frame__bl u">38.5 mm</span>
+              <span class="frame__br u">1:1</span>
+              <div class="console">
+                <p><span class="muted">&gt; prompt</span> what time is it?</p>
+                <p><span class="ember">&gt; mtp-1302</span> <b data-time>--:--:--</b><i class="caret"></i></p>
+                <div class="console__stats u">
+                  <span>0 ms latency</span><span>0 tokens</span><span><b id="tickCount">0</b> ticks</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="features__list">
+            <h2 class="display reveal" id="featTitle">Frontier performance.<br />Wrist-sized footprint.</h2>
+            <ol class="feats">
+              <li class="feat reveal"><span class="feat__n u">01</span><div><h3 class="u">Multi-tick prediction</h3><p>Language models predict the next token. MTP-1302 predicts the next tick: a 32,768&nbsp;Hz quartz crystal, halved fifteen times, yields exactly one per second.</p></div><span class="feat__v u">32,768 Hz</span></li>
+              <li class="feat reveal"><span class="feat__n u">02</span><div><h3 class="u">Three-year context window</h3><p>About 94,608,000 seconds of uninterrupted context on a single SR626SW cell. No summarising. No forgetting. No subscription.</p></div><span class="feat__v u">~3 yrs</span></li>
+              <li class="feat reveal"><span class="feat__n u">03</span><div><h3 class="u">Low drift</h3><p>Drifts less in a month than most models do in a conversation.</p></div><span class="feat__v u">±20 s / mo</span></li>
+              <li class="feat reveal"><span class="feat__n u">04</span><div><h3 class="u">Depth-aligned</h3><p>Water resistant to fifty metres. Survives rain, washing up and the occasional swim. Cannot be jailbroken by a puddle.</p></div><span class="feat__v u">50 m</span></li>
+              <li class="feat reveal"><span class="feat__n u">05</span><div><h3 class="u">Luminous inference</h3><p>Glow-in-the-dark hands. Inference continues with the lights off.</p></div><span class="feat__v u">3 heads</span></li>
+              <li class="feat reveal"><span class="feat__n u">06</span><div><h3 class="u">Zero parameters</h3><p>Not even a temperature setting. It runs at room temperature.</p></div><span class="feat__v u">0B</span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE (scroll-driven exploded view) -->
+    <section class="arch" id="architecture" data-scene="explode" aria-labelledby="archTitle">
+      <div class="arch__sticky">
+        <div class="arch__copy">
+          <div class="sec-head u"><span class="sec-head__idx mono">(02)</span><span>Architecture</span><i class="ticks"></i></div>
+          <h2 class="display display--sm" id="archTitle">Eight layers.<br />Zero transformers.</h2>
+          <div class="arch__layer" aria-live="polite">
+            <p class="arch__count u"><span id="layerIdx">01</span> / 08</p>
+            <h3 class="u" id="layerName">Mineral glass</h3>
+            <p id="layerDesc">A hardened prompt shield. Deflects scratches, coffee and prompt injection.</p>
+          </div>
+          <ol class="arch__steps" id="layerSteps" aria-label="Layers"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- BENCHMARKS -->
+    <section class="sec bench" id="benchmarks" data-scene="off" aria-labelledby="benchTitle">
+      <div class="wrap">
+        <div class="sec-head u reveal"><span class="sec-head__idx mono">(03)</span><span>Benchmarks</span><i class="ticks"></i><span class="mono muted">WristBench v1</span></div>
+        <div class="split">
+          <h2 class="display reveal" id="benchTitle">State of the art<br />on WristBench.</h2>
+          <p class="lede reveal">WristBench is a standardised evaluation suite conducted on a single wrist, over a single afternoon, and very possibly rigged by us. Scores are the share of trials passed.</p>
+        </div>
+        <div class="chart reveal" id="chart">
+          <div class="chart__legend u">
+            <span><i class="sw sw--mtp"></i>MTP-1302</span>
+            <span><i class="sw sw--bot"></i>Frontier chatbot†</span>
+          </div>
+          <div class="chart__rows" id="chartRows"></div>
+          <div class="chart__tip" id="chartTip" role="tooltip"></div>
+        </div>
+        <details class="table-view reveal">
+          <summary class="u">View as table</summary>
+          <table id="chartTable"></table>
+        </details>
+        <p class="fine reveal">† A composite of no particular product. * Declined to answer; recommended checking a clock.</p>
+      </div>
+    </section>
+
+    <!-- RESEARCH -->
+    <section class="sec research" id="research" data-scene="off" aria-labelledby="researchTitle">
+      <div class="wrap">
+        <div class="sec-head u reveal"><span class="sec-head__idx mono">(04)</span><span>Research</span><i class="ticks"></i><span class="mono muted">arXiv:1302.0001</span></div>
+        <div class="research__grid">
+          <div>
+            <h2 class="display reveal" id="researchTitle">Read the<br />technical report.</h2>
+            <p class="lede reveal">Twelve pages. Eleven of them are the dial.</p>
+            <blockquote class="peer reveal">
+              <p>“MTP-1302 is the best model out there. Better uptime than my homelab. Trust me.”</p>
+              <footer class="u">— Anonymous LocalLLaMA user, peer review</footer>
+            </blockquote>
+          </div>
+          <article class="paper reveal">
+            <p class="paper__meta">arXiv:1302.0001 [time.QZ] · v1302</p>
+            <h3 class="paper__title">MTP-1302: Multi-Tick Prediction Is All You Need</h3>
+            <p class="paper__authors">The MTP Team<sup>*</sup></p>
+            <p class="paper__abstract">
+              <b>Abstract.</b> We present MTP-1302, a three-head analog model for temporal inference. Unlike prior
+              approaches, MTP-1302 is trained on zero tokens, requires zero GPUs and achieves state-of-the-art results
+              on WristBench with a drift of ±20 seconds per month. We find that scaling laws do not apply: the model is,
+              and will remain, 38.5&nbsp;mm. We release all weights (105&nbsp;g).
+            </p>
+            <p class="paper__fn">* Equal contribution, mostly from the battery.</p>
+            <div class="paper__actions">
+              <button class="btn btn--ink" type="button" data-toast="The PDF is the watch. Look at it.">PDF</button>
+              <button class="btn btn--ink-ghost" type="button" data-toast="Weights downloaded: 105 g. Please use both hands.">Weights · 105 g</button>
+            </div>
+          </article>
+        </div>
+
+        <div class="weights reveal">
+          <div class="weights__head u"><span>Open weights · checkpoints</span><span class="muted">Licence: wear it however you like</span></div>
+          <table class="weights__table">
+            <thead><tr><th>Checkpoint</th><th>Type</th><th>Dial</th><th>Weights</th></tr></thead>
+            <tbody>
+              <tr><td>mtp-1302-1a</td><td>Base</td><td>Black sunburst</td><td>105 g</td></tr>
+              <tr><td>mtp-1302-2a</td><td>Instruct</td><td>Blue sunburst</td><td>105 g</td></tr>
+              <tr><td>mtp-1302-3a</td><td>Frontier</td><td>Green sunburst</td><td>105 g</td></tr>
+              <tr><td>mtp-1302-7a</td><td>Lite</td><td>Silver-white</td><td>105 g</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <dl class="modelcard reveal">
+          <div><dt class="u">Parameters</dt><dd>0</dd></div>
+          <div><dt class="u">Training tokens</dt><dd>0</dd></div>
+          <div><dt class="u">Inference engine</dt><dd>Quartz module 2784</dd></div>
+          <div><dt class="u">Knowledge cutoff</dt><dd>Right now. Continuously.</dd></div>
+          <div><dt class="u">Form factor</dt><dd>44.2 × 38.5 × 9.4 mm</dd></div>
+          <div><dt class="u">Prompt shield</dt><dd>Mineral glass</dd></div>
+          <div><dt class="u">Housing</dt><dd>Stainless steel, triple-fold clasp</dd></div>
+          <div><dt class="u">Interface</dt><dd>3 hands, date, luminous hands</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- TESTIMONIALS -->
+    <section class="sec voices" data-scene="off" aria-labelledby="voicesTitle">
+      <div class="wrap">
+        <div class="sec-head u reveal"><span class="sec-head__idx mono">(05)</span><span>Early access</span><i class="ticks"></i></div>
+        <h2 class="display reveal" id="voicesTitle">What early users<br />are saying.</h2>
+      </div>
+      <div class="voices__rows">
+        <div class="marquee" data-marquee>
+          <div class="marquee__track">
+            <figure class="quote"><blockquote>“I asked it what time it was. It told me. No follow-up questions. No disclaimer. No ‘great question’.”</blockquote><figcaption class="u">Staff engineer, still on call</figcaption></figure>
+            <figure class="quote"><blockquote>“Our cluster was down for six hours. MTP-1302 was not.”</blockquote><figcaption class="u">SRE, asked to remain anonymous</figcaption></figure>
+            <figure class="quote"><blockquote>“My dad has had the same one since before I was born. Better uptime than anything I've ever shipped.”</blockquote><figcaption class="u">Senior developer</figcaption></figure>
+            <figure class="quote"><blockquote>“Finally: local inference running on a battery the size of a lentil.”</blockquote><figcaption class="u">Hobbyist, self-hosts everything</figcaption></figure>
+          </div>
+        </div>
+        <div class="marquee marquee--reverse" data-marquee>
+          <div class="marquee__track">
+            <figure class="quote"><blockquote>“Zero hallucinations. Once it said it was the 31st of June, but honestly that's on me.”</blockquote><figcaption class="u">Early adopter</figcaption></figure>
+            <figure class="quote"><blockquote>“I benchmarked it against my phone. My phone died.”</blockquote><figcaption class="u">PhD student, year six</figcaption></figure>
+            <figure class="quote"><blockquote>“The only model I trust with my calendar. It doesn't know about my meetings. That's why.”</blockquote><figcaption class="u">Product manager</figcaption></figure>
+            <figure class="quote"><blockquote>“Quietly the most widely deployed model on earth. Nobody ever writes about it.”</blockquote><figcaption class="u">Someone at gate 14</figcaption></figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUCT: the 3D watch docks into the card -->
+    <section class="sec product" id="product" data-scene="product" aria-labelledby="productTitle">
+      <div class="wrap">
+        <div class="sec-head u reveal"><span class="sec-head__idx mono">(06)</span><span>Product</span><i class="ticks"></i><span class="mono muted">Generally available</span></div>
+        <div class="product__grid">
+          <div class="pcard">
+            <div class="pcard__top u"><span>MTP-1302</span><span id="ckptCode">2A · Instruct</span></div>
+            <div class="pcard__slot" id="slot"></div>
+            <div class="pcard__specs u">
+              <span>38.5 mm</span><span>105 g</span><span>50 m</span><span>±20 s/mo</span>
+            </div>
+          </div>
+          <div class="product__panel">
+            <h2 class="display reveal" id="productTitle">Choose your<br />checkpoint.</h2>
+            <div class="ckpts" role="radiogroup" aria-label="Dial colour">
+              <button class="ckpt" role="radio" aria-checked="false" data-dial="black" data-code="1A · Base">
+                <i class="ckpt__sw" style="--sw:#15171b"></i><span class="ckpt__name u">1A · Base</span><span class="ckpt__desc">Black sunburst. Goes with everything, including nothing in particular.</span>
+              </button>
+              <button class="ckpt" role="radio" aria-checked="true" data-dial="blue" data-code="2A · Instruct">
+                <i class="ckpt__sw" style="--sw:#1c3f93"></i><span class="ckpt__name u">2A · Instruct</span><span class="ckpt__desc">Blue sunburst. Fine-tuned to receive compliments.</span>
+              </button>
+              <button class="ckpt" role="radio" aria-checked="false" data-dial="green" data-code="3A · Frontier">
+                <i class="ckpt__sw" style="--sw:#1c5a42"></i><span class="ckpt__name u">3A · Frontier</span><span class="ckpt__desc">Green sunburst. Our most capable dial colour.</span>
+              </button>
+              <button class="ckpt" role="radio" aria-checked="false" data-dial="white" data-code="7A · Lite">
+                <i class="ckpt__sw" style="--sw:#d9dbdd"></i><span class="ckpt__name u">7A · Lite</span><span class="ckpt__desc">Silver-white. Same model, lighter latent space.</span>
+              </button>
+            </div>
+            <div class="price">
+              <span class="price__k u">Price</span>
+              <span class="price__v u">Once.</span>
+              <span class="price__n">About one month of an AI subscription. Billed never again.</span>
+            </div>
+            <div class="product__ctas">
+              <a class="btn btn--cream u" href="https://www.google.com/search?q=Casio+MTP-1302" target="_blank" rel="noopener">Find one near you ↗</a>
+              <button class="btn btn--dotted u" type="button" data-toast="There is no sales team. There is only the watch.">Contact sales</button>
+            </div>
+            <p class="fine">No account. No login. No updates. Dial colours vary by region; the model does not.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- THE END -->
+    <section class="reveal-end" id="end" data-scene="reveal" aria-labelledby="endTitle">
+      <div class="reveal-end__sticky">
+        <div class="reveal-end__inner">
+          <h2 class="end-title u" id="endTitle">It's a watch.</h2>
+          <p class="end-copy">
+            No AI. No cloud. No model. A quartz crystal, a coin cell and three hands — the same thing it was before
+            anyone wrote this page. It runs for years without being asked, and it has never once asked you to rate
+            its response.
+          </p>
+          <p class="end-time u">It is <span data-time>--:--:--</span>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer__row u">
+        <span>© 2026 · A parody</span>
+        <span class="ticks"></span>
+        <a href="#intro">Back to top ↑</a>
+      </div>
+      <p class="footer__legal">
+        A fan-made homage to <a href="https://oryzo.ai" target="_blank" rel="noopener">ORYZO</a> by Lusion. Not affiliated with,
+        sponsored or endorsed by CASIO Computer Co., Ltd. CASIO and MTP-1302 belong to their respective owners. Specs are
+        from public product listings. The watch is real; the AI is not.
+      </p>
+      <svg class="wordmark footer__mark" viewBox="0 0 1000 150" aria-hidden="true"><text x="0" y="136" textLength="1000" lengthAdjust="spacingAndGlyphs">MTP-1302</text></svg>
+    </div>
+  </footer>
+
+  <div class="toast u" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 
 import * as THREE from '../vendor/three.min.js';
 
-const { RoomEnvironment, RoundedBoxGeometry } = THREE;
+const { RoundedBoxGeometry } = THREE;
 
 export const DIALS = {
   black: { base: '#0b0c0f', sheen: '#7d8592', print: '#e8eaee', accent: '#c9ced6' },
@@ -124,6 +124,57 @@ function makeDateTexture(day) {
   return tex;
 }
 
+// Cool daylight studio: bright windows above, a concrete desk and blueprint below.
+function makeEnvTexture() {
+  const w = 1024;
+  const h = 512;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  const sky = ctx.createLinearGradient(0, 0, 0, h / 2);
+  sky.addColorStop(0, '#f5f8ff');
+  sky.addColorStop(0.55, '#bcc6d8');
+  sky.addColorStop(1, '#5a6274');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h / 2);
+  const desk = ctx.createLinearGradient(0, h / 2, 0, h);
+  desk.addColorStop(0, '#454a53');
+  desk.addColorStop(1, '#14171c');
+  ctx.fillStyle = desk;
+  ctx.fillRect(0, h / 2, w, h / 2);
+  ctx.fillStyle = 'rgba(46, 62, 92, 0.85)';
+  ctx.fillRect(w * 0.18, h * 0.56, w * 0.42, h * 0.44);
+  // windows
+  ctx.filter = 'blur(6px)';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(w * 0.08, h * 0.14, w * 0.12, h * 0.22);
+  ctx.fillRect(w * 0.58, h * 0.1, w * 0.18, h * 0.26);
+  ctx.fillStyle = '#d6e2ff';
+  ctx.fillRect(w * 0.82, h * 0.2, w * 0.08, h * 0.16);
+  ctx.filter = 'none';
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeContactTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+  g.addColorStop(0, 'rgba(255,255,255,0.75)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.5)');
+  g.addColorStop(0.7, 'rgba(255,255,255,0.16)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 256, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 const dialVertex = /* glsl */ `
   varying vec3 vLocal;
   void main() {
@@ -197,22 +248,52 @@ export function createWatch(canvas, opts = {}) {
   const camera = new THREE.PerspectiveCamera(30, 1, 10, 2000);
   camera.position.set(0, 0, 220);
 
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.035).texture;
-  if ('environmentIntensity' in scene) scene.environmentIntensity = 0.62;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
-  const key = new THREE.DirectionalLight(0xffffff, 2.4);
-  key.position.set(-80, 110, 140);
-  const rim = new THREE.DirectionalLight(0xbcd0ff, 1.6);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envTex = makeEnvTexture();
+  scene.environment = pmrem.fromEquirectangular(envTex).texture;
+  envTex.dispose();
+  if ('environmentIntensity' in scene) scene.environmentIntensity = 0.95;
+
+  // Cool morning light through the blinds, from the top left, casting onto the desk.
+  const sunDir = new THREE.Vector3(-0.62, 0.72, 0.62).normalize();
+  const key = new THREE.DirectionalLight(0xf2f5ff, 2.6);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.radius = 9;
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.02;
+  key.shadow.camera.near = 1;
+  key.shadow.camera.far = 900;
+  const rim = new THREE.DirectionalLight(0x86a6ff, 1.4);
   rim.position.set(140, -60, -40);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+  const fill = new THREE.DirectionalLight(0xe8eeff, 0.55);
   fill.position.set(120, 40, 120);
-  scene.add(key, rim, fill);
+  scene.add(key, key.target, rim, fill);
+
+  // Invisible desk that only shows the watch's shadow
+  const shadowMat = new THREE.ShadowMaterial({ color: 0x02050c, opacity: 0.6, depthWrite: false });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), shadowMat);
+  ground.receiveShadow = true;
+  ground.renderOrder = -2;
+  scene.add(ground);
+  const contactMat = new THREE.MeshBasicMaterial({
+    map: makeContactTexture(),
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+    color: 0x02050c,
+  });
+  const contact = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), contactMat);
+  contact.renderOrder = -1;
+  scene.add(contact);
 
   // ------------------------------------------------------------------ materials
   const mat = {
     polished: new THREE.MeshStandardMaterial({ color: 0xd2d5da, metalness: 1, roughness: 0.12, side: THREE.DoubleSide }),
-    brushed: new THREE.MeshStandardMaterial({ color: 0xb9bdc4, metalness: 1, roughness: 0.36, side: THREE.DoubleSide }),
+    brushed: new THREE.MeshStandardMaterial({ color: 0xbfc3ca, metalness: 1, roughness: 0.42, side: THREE.DoubleSide }),
     hand: new THREE.MeshStandardMaterial({ color: 0xeef0f3, metalness: 1, roughness: 0.12 }),
     lume: new THREE.MeshStandardMaterial({ color: 0xeef3e6, emissive: 0x9fe6b6, emissiveIntensity: 0.12, roughness: 0.55, metalness: 0 }),
     plastic: new THREE.MeshStandardMaterial({ color: 0x17181b, metalness: 0.1, roughness: 0.55 }),
@@ -477,27 +558,52 @@ export function createWatch(canvas, opts = {}) {
   const pos = new THREE.Vector3();
   const one = new THREE.Vector3(1, 1, 1);
   const flip = new THREE.Matrix4().makeRotationZ(Math.PI);
-  let ci = 0;
-  let oi = 0;
-  for (const side of [1, -1]) {
-    for (let i = 0; i < rows; i++) {
-      const s = pitch * (i + 0.5);
-      const th = theta0 - s / R;
-      const rr = R - 1.45;
-      e.set(th - Math.PI / 2, 0, 0);
-      q.setFromEuler(e);
-      pos.set(0, C.y + Math.cos(th) * rr, C.z + Math.sin(th) * rr);
-      m4.compose(pos, q, one);
-      if (side < 0) m4.premultiply(flip);
-      centerLinks.setMatrixAt(ci++, m4);
-      for (const ox of [-6.75, 6.75]) {
-        pos.set(ox, C.y + Math.cos(th) * (rr + 0.15), C.z + Math.sin(th) * (rr + 0.15));
+
+  // Two poses per row: lying open on the desk ("flat") and closed around a wrist ("loop").
+  const TABLE_Z = -6.32;
+  const flatZ = (s) => -2.45 + (TABLE_Z + 1.42 + 2.45) * smooth(Math.min(1, Math.max(0, s / 15)));
+  const rowPose = [];
+  for (let i = 0; i < rows; i++) {
+    const s = pitch * (i + 0.5);
+    const th = theta0 - s / R;
+    const rr = R - 1.45;
+    rowPose.push({
+      loop: { y: C.y + Math.cos(th) * rr, z: C.z + Math.sin(th) * rr, a: th - Math.PI / 2, ny: Math.cos(th), nz: Math.sin(th) },
+      flat: { y: P0.y + s, z: flatZ(s), a: Math.atan2(flatZ(s + 0.5) - flatZ(s - 0.5), 1), ny: 0, nz: 1 },
+    });
+  }
+  let braceletT = -1;
+  function layoutBracelet(t) {
+    let ci = 0;
+    let oi = 0;
+    for (const side of [1, -1]) {
+      for (const { loop, flat } of rowPose) {
+        const y = flat.y + (loop.y - flat.y) * t;
+        const z = flat.z + (loop.z - flat.z) * t;
+        const a = flat.a + (loop.a - flat.a) * t;
+        const ny = flat.ny + (loop.ny - flat.ny) * t;
+        const nz = flat.nz + (loop.nz - flat.nz) * t;
+        e.set(a, 0, 0);
+        q.setFromEuler(e);
+        pos.set(0, y, z);
         m4.compose(pos, q, one);
         if (side < 0) m4.premultiply(flip);
-        outerLinks.setMatrixAt(oi++, m4);
+        centerLinks.setMatrixAt(ci++, m4);
+        // outer links are thinner: sit them on the same inner surface
+        for (const ox of [-6.75, 6.75]) {
+          pos.set(ox, y + ny * 0.15 * (2 * t - 1), z + nz * 0.15 * (2 * t - 1));
+          m4.compose(pos, q, one);
+          if (side < 0) m4.premultiply(flip);
+          outerLinks.setMatrixAt(oi++, m4);
+        }
       }
     }
+    centerLinks.instanceMatrix.needsUpdate = true;
+    outerLinks.instanceMatrix.needsUpdate = true;
+    centerLinks.computeBoundingSphere();
+    outerLinks.computeBoundingSphere();
   }
+  layoutBracelet(1);
   layers.bracelet.add(centerLinks, outerLinks);
 
   // End links filling the lug gap, plus the fold-over clasp at the bottom of the loop
@@ -509,8 +615,16 @@ export function createWatch(canvas, opts = {}) {
     layers.bracelet.add(end);
   }
   const clasp = new THREE.Mesh(new RoundedBoxGeometry(19.4, 22, 3.4, 3, 1.2), braceletBrushed);
-  clasp.position.set(0, 0, C.z - R + 1.2);
+  const claspLoop = new THREE.Vector3(0, 0, C.z - R + 1.2);
+  const claspFlat = new THREE.Vector3(0, -(P0.y + rows * pitch + 10.5), TABLE_Z + 1.7);
+  clasp.position.copy(claspLoop);
   layers.bracelet.add(clasp);
+
+  watch.traverse((o) => {
+    if (o.isMesh) o.castShadow = true;
+  });
+  crystal.castShadow = false;
+  print.castShadow = false;
 
   // ------------------------------------------------------------------ label anchors
   const anchors = {
@@ -527,9 +641,9 @@ export function createWatch(canvas, opts = {}) {
   const handLift = { hour: 19, minute: 25, second: 31 };
 
   // ------------------------------------------------------------------ state
-  const keys = ['x', 'y', 'size', 'rx', 'ry', 'rz', 'explode', 'dim', 'bracelet'];
-  const target = { x: 0.4, y: 0, size: 0.44, rx: 0.3, ry: -0.4, rz: 0.1, explode: 0, dim: 1, bracelet: 1 };
-  const current = { ...target, y: -1.6, rx: 1.2, rz: -0.6 };
+  const keys = ['x', 'y', 'z', 'size', 'rx', 'ry', 'rz', 'explode', 'dim', 'bracelet', 'loop', 'shadow'];
+  const target = { x: 0, y: 0, z: 0, size: 0.36, rx: 0, ry: 0, rz: 0.2, explode: 0, dim: 1, bracelet: 1, loop: 0, shadow: 1 };
+  const current = { ...target };
   let activeLayer = -1;
   const layerBoost = Object.fromEntries(LAYERS.map((l) => [l.id, 0]));
 
@@ -553,6 +667,13 @@ export function createWatch(canvas, opts = {}) {
     camera.updateProjectionMatrix();
     visH = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     visW = visH * camera.aspect;
+    const r = Math.max(visW, visH) * 0.75;
+    const sc = key.shadow.camera;
+    sc.left = -r;
+    sc.right = r;
+    sc.top = r;
+    sc.bottom = -r;
+    sc.updateProjectionMatrix();
   }
   resize();
 
@@ -636,15 +757,43 @@ export function createWatch(canvas, opts = {}) {
 
     const base = Math.min(visH, visW * 1.1);
     const scale = (current.size * base) / (CASE_R * 2);
-    const float = reduceMotion ? 0 : Math.sin(elapsed * 0.9) * 0.012;
-    root.position.set((current.x * visW) / 2, (current.y + float) * (visH / 2), 0);
+    // resting on the desk = no floating or pointer sway
+    const air = 1 - Math.max(0, Math.min(1, current.shadow));
+    const float = reduceMotion ? 0 : Math.sin(elapsed * 0.9) * 0.012 * air;
+    root.position.set((current.x * visW) / 2, (current.y + float) * (visH / 2), current.z);
     root.scale.setScalar(scale);
     root.rotation.set(
-      current.rx + pointer.sy * 0.14,
-      current.ry + pointer.sx * 0.22,
-      current.rz + (reduceMotion ? 0 : Math.sin(elapsed * 0.6) * 0.03)
+      current.rx + pointer.sy * 0.14 * air,
+      current.ry + pointer.sx * 0.22 * air,
+      current.rz + (reduceMotion ? 0 : Math.sin(elapsed * 0.6) * 0.03 * air)
     );
     spin.rotation.set(drag.tilt, drag.rot, 0);
+
+    // bracelet: open on the desk -> closed loop
+    const loopT = smooth(Math.max(0, Math.min(1, current.loop)));
+    if (Math.abs(loopT - braceletT) > 1e-4) {
+      braceletT = loopT;
+      layoutBracelet(loopT);
+      clasp.position.lerpVectors(claspFlat, claspLoop, loopT);
+    }
+
+    // desk shadow (only while the watch is near the desk)
+    const sh = Math.max(0, Math.min(1, current.shadow));
+    const deskZ = TABLE_Z * scale - 0.05;
+    ground.position.set(root.position.x, root.position.y, deskZ);
+    ground.visible = sh > 0.01;
+    shadowMat.opacity = 0.86 * sh;
+    renderer.shadowMap.autoUpdate = ground.visible;
+    if (ground.visible) {
+      key.target.position.set(root.position.x, root.position.y, deskZ);
+      key.position.copy(sunDir).multiplyScalar(400).add(key.target.position);
+    }
+    const lift = Math.max(0, current.z) / 40;
+    contact.visible = ground.visible;
+    contact.position.set(root.position.x + lift * 6, root.position.y - lift * 6, deskZ + 0.02);
+    contact.scale.set(scale * 74 * (1 + lift), scale * 150 * (1 + lift), 1);
+    contact.rotation.z = current.rz;
+    contactMat.opacity = (sh * 0.85) / (1 + lift * 2);
 
     // exploded view
     const ex = smooth(Math.min(Math.max(current.explode, 0), 1));
@@ -694,7 +843,7 @@ export function createWatch(canvas, opts = {}) {
     dial.worldToLocal(tmpCam);
     dialUniforms.uCam.value.copy(tmpCam);
     const inv = tmpM3.setFromMatrix4(dial.matrixWorld).invert();
-    tmpL.copy(key.position).normalize().applyMatrix3(inv).normalize();
+    tmpL.copy(sunDir).applyMatrix3(inv).normalize();
     dialUniforms.uKey.value.copy(tmpL);
     tmpL.copy(fill.position).normalize().applyMatrix3(inv).normalize();
     dialUniforms.uFill.value.copy(tmpL);
